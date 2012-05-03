@@ -1,3 +1,10 @@
+rockit
+======
+
+brew install mpg123 vorbis-tools
+
+more soon...
+
 playdoh
 =======
 
