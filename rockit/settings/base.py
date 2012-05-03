@@ -35,8 +35,9 @@ ROOT_URLCONF = '%s.urls' % PROJECT_MODULE
 INSTALLED_APPS = list(INSTALLED_APPS) + [
     # Application base, containing global templates.
     '%s.base' % PROJECT_MODULE,
-    # Example code. Can (and should) be removed for actual projects.
-    '%s.examples' % PROJECT_MODULE,
+    'rockit.sync',
+    'rockit.music',
+    'django.contrib.admin',
 ]
 
 
@@ -71,4 +72,13 @@ DOMAIN_METHODS['messages'] = [
 #    ('media/js/**.js', 'javascript'),
 # ]
 
-LOGGING = dict(loggers=dict(playdoh = {'level': logging.DEBUG}))
+LOGGING = dict(loggers=dict(playdoh = {'level': logging.DEBUG},
+                            sync = {'level': logging.INFO}))
+
+UPLOAD_TEMP_DIR = os.path.join(ROOT, 'tmp')
+
+S3_ACCESS_ID = '<set in local>'
+S3_SECRET_KEY = '<set in local>'
+S3_BUCKET = 'rockitscratch'
+
+LAST_FM_KEY = '<set in local>'
