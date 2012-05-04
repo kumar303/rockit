@@ -76,7 +76,7 @@ def get_key_contents(key_path):
 
 def move_local_file_into_s3_dir(local_file, s3_path, make_public=True,
                                 retry_sleep_time=default_retry_sleep_time,
-                                basename=None,
+                                basename=None, headers={},
                                 unlink_source=True):
     conn = get_connection()
     bucket = conn.get_bucket(settings.S3_BUCKET)
@@ -87,7 +87,7 @@ def move_local_file_into_s3_dir(local_file, s3_path, make_public=True,
         return
 
     def set_contents():
-        k.set_contents_from_filename(local_file)
+        k.set_contents_from_filename(local_file, headers=headers)
     run_in_retry_loop(set_contents, retry_sleep_time=retry_sleep_time)
 
     if unlink_source:

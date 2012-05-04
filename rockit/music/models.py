@@ -18,11 +18,9 @@ class AudioFile(ModelBase):
 
     def to_json(self):
         def _url(path):
-            return os.path.join('http://localhost:8000', 'tmp',
-                    '%s.ogg' % self.pk)
-            #return 'http://%s.s3.amazonaws.com/%s' % (
-            #                     settings.S3_BUCKET,
-            #                     path)
+            return 'http://%s.s3.amazonaws.com/%s' % (
+                                 settings.S3_BUCKET,
+                                 path)
         return dict(artist=self.artist,
                     album=self.album,
                     track=self.track,

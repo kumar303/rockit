@@ -27,9 +27,3 @@ if settings.DEBUG:
         (r'^%s/(?P<path>.*)$' % media_url, 'django.views.static.serve',
          {'document_root': settings.MEDIA_ROOT}),
     )
-
-# Serves any URL like /tmp/* from your local ./tmp/ dir
-urlpatterns += patterns('',
-    (r'^tmp/(?P<path>.*)$', 'django.views.static.serve',
-     {'document_root': '/Users/kumar/dev/rockit/tmp'}),
-)

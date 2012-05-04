@@ -11,6 +11,8 @@ from rockit.music.audio_file import scan_fast
 from rockit.music.models import AudioFile
 from . import s3
 
+_s3_time_limit = 800
+
 
 @task
 def process_file(user_email, filename, **kw):
@@ -23,12 +25,13 @@ def process_file(user_email, filename, **kw):
                                   artist=artist,
                                   album=album,
                                   track=track)
-    store_file.delay(au.pk)
+    store_mp3.delay(au.pk)
     album_art.delay(au.pk)
 
 
-@task
-def store_file(file_id, **kw):
+@task(time_limit=_s3_time_limit)
+def store_mp3(file_id, **kw):
+    print 'starting to store mp3 for %s' % file_id
     au = AudioFile.objects.get(pk=file_id)
     s3_path = '%s/%s.mp3' % (au.email, au.pk)
     s3.move_local_file_into_s3_dir(au.temp_path,
@@ -36,7 +39,14 @@ def store_file(file_id, **kw):
                                    make_public=True,
                                    unlink_source=False)
     au.s3_mp3_url = s3_path
+    print 'mp3 stored for %s' % file_id
+    store_ogg.delay(file_id)
 
+
+@task(time_limit=_s3_time_limit)
+def store_ogg(file_id, **kw):
+    print 'starting to transcode and store ogg for %s' % file_id
+    au = AudioFile.objects.get(pk=file_id)
     os.chdir(os.path.dirname(au.temp_path))
     frommp3 = subprocess.Popen(['mpg123', '-w', '-',
                                 os.path.basename(au.temp_path)],
@@ -67,11 +77,12 @@ def store_file(file_id, **kw):
     s3.move_local_file_into_s3_dir(dest,
                                    s3_path,
                                    make_public=True,
-                                   unlink_source=True)
+                                   unlink_source=True,
+                                   headers={'Content-Type': 'application/ogg'})
     au.s3_ogg_url = s3_path
 
     au.save()
-    print 'stored %s' % (s3_path)
+    print 'stored %s for %s' % (s3_path, file_id)
 
 
 @task
