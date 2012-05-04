@@ -30,7 +30,7 @@ Copy over the settings file:
 
 Sync it up!
 
-    python manage.py syncdb
+    python manage.py syncdb --noinput
 
 Here are some things to set in your local settings:
 
