@@ -91,11 +91,9 @@ def album_art(file_id, **kw):
     try:
         fm = pylast.get_lastfm_network(api_key=settings.LAST_FM_KEY)
         fm_album = fm.get_album(au.artist, au.album)
-        #track.lastfm_url_sm_image = \
-        #                fm_album.get_cover_image(pylast.COVER_SMALL)
-        #track.lastfm_url_med_image = \
-        #                fm_album.get_cover_image(pylast.COVER_MEDIUM)
-        au.album_art_url = fm_album.get_cover_image(pylast.COVER_LARGE)
+        au.large_art_url = fm_album.get_cover_image(pylast.COVER_LARGE)
+        au.medium_art_url = fm_album.get_cover_image(pylast.COVER_MEDIUM)
+        au.small_art_url = fm_album.get_cover_image(pylast.COVER_SMALL)
     except pylast.WSError:
         # Probably album not found
         raise

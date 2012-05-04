@@ -14,7 +14,15 @@ class AudioFile(ModelBase):
     track = models.CharField(max_length=255)
     s3_mp3_url = models.CharField(max_length=255, blank=True, null=True)
     s3_ogg_url = models.CharField(max_length=255, blank=True, null=True)
-    album_art_url = models.CharField(max_length=255, blank=True, null=True)
+    large_art_url = models.CharField(max_length=255, blank=True, null=True)
+    medium_art_url = models.CharField(max_length=255, blank=True, null=True)
+    small_art_url = models.CharField(max_length=255, blank=True, null=True)
+
+    def __unicode__(self):
+        return u'<%s %s:%s@%s>' % (self.__class__.__name__,
+                                   self.artist,
+                                   self.track,
+                                   self.pk)
 
     def to_json(self):
         def _url(path):
@@ -26,4 +34,8 @@ class AudioFile(ModelBase):
                     track=self.track,
                     s3_mp3_url=_url(self.s3_mp3_url),
                     s3_ogg_url=_url(self.s3_ogg_url),
-                    album_art_url=self.album_art_url)
+                    large_art_url=self.large_art_url,
+                    medium_art_url=self.medium_art_url,
+                    small_art_url=self.small_art_url,
+                    # deprecate this:
+                    album_art_url=self.large_art_url)
