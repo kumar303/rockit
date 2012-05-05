@@ -1,5 +1,4 @@
 import os
-import shutil
 
 from django.conf import settings
 
@@ -10,6 +9,7 @@ import test_utils
 
 from rockit.music.models import AudioFile
 from rockit.sync import tasks
+from rockit.sync.tests import create_audio_file
 
 
 class TestTasks(test_utils.TestCase):
@@ -22,18 +22,7 @@ class TestTasks(test_utils.TestCase):
             os.makedirs(settings.UPLOAD_TEMP_DIR)
 
     def audio_file(self):
-        tmp = os.path.join(settings.UPLOAD_TEMP_DIR,
-                           '__test__.mp3')
-        if os.path.exists(tmp):
-            os.unlink(tmp)
-        shutil.copyfile(self.mp3, tmp)
-        af = AudioFile.objects.create(temp_path=tmp,
-                                      email='edna@wat.com',
-                                      artist='Gescom',
-                                      album='Minidisc',
-                                      track='Horse',
-                                      byte_size=1)
-        return af
+        return create_audio_file(mp3=self.mp3)
 
     @fudge.patch('rockit.sync.tasks.store_mp3')
     @fudge.patch('rockit.sync.tasks.album_art')
