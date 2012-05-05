@@ -39,6 +39,7 @@ def store_mp3(file_id, **kw):
                                    make_public=True,
                                    unlink_source=False)
     au.s3_mp3_url = s3_path
+    au.save()
     print 'mp3 stored for %s' % file_id
     store_ogg.delay(file_id)
 
@@ -47,31 +48,33 @@ def store_mp3(file_id, **kw):
 def store_ogg(file_id, **kw):
     print 'starting to transcode and store ogg for %s' % file_id
     au = AudioFile.objects.get(pk=file_id)
+    cwd = os.getcwd()
     os.chdir(os.path.dirname(au.temp_path))
-    frommp3 = subprocess.Popen(['mpg123', '-w', '-',
-                                os.path.basename(au.temp_path)],
-                               stdout=subprocess.PIPE)
-    toogg = subprocess.Popen(['oggenc', '-'],
-                             stdin=frommp3.stdout,
-                             stdout=subprocess.PIPE)
-    base, ext = os.path.splitext(os.path.basename(au.temp_path))
-    with tempfile.NamedTemporaryFile('wb', delete=False) as outfile:
-        dest = outfile.name
-        print 'transcoding %s -> %s' % (frommp3, dest)
-        while True:
-            data = toogg.stdout.read(1024 * 100)
-            if not data:
-                break
-            outfile.write(data)
-    ret = toogg.wait()
-    if ret != 0:
-        raise RuntimeError('oggenc failed')
-    #p = subprocess.Popen(['ffmpeg',
+    try:
+        frommp3 = subprocess.Popen(['mpg123', '-w', '-',
+                                    os.path.basename(au.temp_path)],
+                                   stdout=subprocess.PIPE)
+        toogg = subprocess.Popen(['oggenc', '-'],
+                                 stdin=frommp3.stdout,
+                                 stdout=subprocess.PIPE)
+        base, ext = os.path.splitext(os.path.basename(au.temp_path))
+        with tempfile.NamedTemporaryFile('wb', delete=False) as outfile:
+            dest = outfile.name
+            print 'transcoding %s -> %s' % (frommp3, dest)
+            while True:
+                data = toogg.stdout.read(1024 * 100)
+                if not data:
+                    break
+                outfile.write(data)
+        ret = toogg.wait()
+        if ret != 0:
+            raise RuntimeError('oggenc failed')
+    finally:
+        os.chdir(cwd)
+    #p = subprocess.Popen(['ffmpeg', '-i',
     #                      au.temp_path,
     #                     '-vn', '-acodec', 'vorbis', '-aq', 60, '-strict',
-    #                     'experimental',
-    #                     ])
-    # -i $1 -vn -acodec vorbis -aq 60 -strict experimental $2
+    #                     'experimental', dest])
 
     s3_path = '%s/%s.ogg' % (au.email, au.pk)
     s3.move_local_file_into_s3_dir(dest,
