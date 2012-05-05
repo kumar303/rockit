@@ -1,5 +1,6 @@
 import json
 
+import fudge
 from funfactory.urlresolvers import reverse
 from nose.tools import eq_
 import test_utils
@@ -13,7 +14,9 @@ class TestSongs(test_utils.TestCase):
         self.af = create_audio_file(s3_ogg_url='s3:ogg',
                                     s3_mp3_url='s3:mp3')
 
-    def test_songs(self):
+    @fudge.patch('rockit.music.models.s3')
+    def test_songs(self, s3):
+        s3.expects('get_authenticated_url')
         resp = self.client.get(reverse('sync.songs'),
                                dict(email='edna@wat.com'),
                                follow=True)

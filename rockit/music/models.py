@@ -1,9 +1,8 @@
-import os
-
 from django.conf import settings
 from django.db import models
 
 from rockit.base.models import ModelBase
+from rockit.sync import s3
 
 
 class AudioFile(ModelBase):
@@ -33,8 +32,8 @@ class AudioFile(ModelBase):
         return dict(artist=self.artist,
                     album=self.album,
                     track=self.track,
-                    s3_mp3_url=_url(self.s3_mp3_url),
-                    s3_ogg_url=_url(self.s3_ogg_url),
+                    s3_mp3_url=s3.get_authenticated_url(self.s3_mp3_url),
+                    s3_ogg_url=s3.get_authenticated_url(self.s3_ogg_url),
                     large_art_url=self.large_art_url,
                     medium_art_url=self.medium_art_url,
                     small_art_url=self.small_art_url,

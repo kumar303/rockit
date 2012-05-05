@@ -46,7 +46,8 @@ class TestTasks(test_utils.TestCase):
         (s3.expects('move_local_file_into_s3_dir')
            .with_args(af.temp_path,
                       s3_path,
-                      make_public=True,
+                      make_public=False,
+                      make_protected=True,
                       unlink_source=False))
 
         tasks.store_mp3(af.pk)
@@ -61,7 +62,8 @@ class TestTasks(test_utils.TestCase):
         (s3.expects('move_local_file_into_s3_dir')
            .with_args(arg.any(),
                       s3_path,
-                      make_public=True,
+                      make_public=False,
+                      make_protected=True,
                       unlink_source=True,
                       headers={'Content-Type': 'application/ogg'}))
 

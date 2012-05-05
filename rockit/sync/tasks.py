@@ -37,7 +37,8 @@ def store_mp3(file_id, **kw):
     s3_path = '%s/%s.mp3' % (au.email, au.pk)
     s3.move_local_file_into_s3_dir(au.temp_path,
                                    s3_path,
-                                   make_public=True,
+                                   make_public=False,
+                                   make_protected=True,
                                    unlink_source=False)
     au.s3_mp3_url = s3_path
     au.save()
@@ -80,7 +81,8 @@ def store_ogg(file_id, **kw):
     s3_path = '%s/%s.ogg' % (au.email, au.pk)
     s3.move_local_file_into_s3_dir(dest,
                                    s3_path,
-                                   make_public=True,
+                                   make_public=False,
+                                   make_protected=True,
                                    unlink_source=True,
                                    headers={'Content-Type': 'application/ogg'})
     au.s3_ogg_url = s3_path
