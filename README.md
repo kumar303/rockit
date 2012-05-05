@@ -24,13 +24,13 @@ Get your mysql database set up:
 
     mysql -u root -e 'create database rockit'
 
+Build the database schema:
+
+    ./vendor/src/schematic/schematic migrations
+
 Copy over the settings file:
 
     cp rockit/settings/local.py-dist rockit/settings/local.py
-
-Sync it up!
-
-    python manage.py syncdb --noinput
 
 Here are some things to set in your local settings:
 
