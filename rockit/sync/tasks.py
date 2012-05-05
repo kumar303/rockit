@@ -24,7 +24,8 @@ def process_file(user_email, filename, **kw):
                                   temp_path=filename,
                                   artist=artist,
                                   album=album,
-                                  track=track)
+                                  track=track,
+                                  byte_size=os.path.getsize(filename))
     store_mp3.delay(au.pk)
     album_art.delay(au.pk)
 

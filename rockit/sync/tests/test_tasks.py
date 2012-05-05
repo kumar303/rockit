@@ -31,7 +31,8 @@ class TestTasks(test_utils.TestCase):
                                       email='edna@wat.com',
                                       artist='Gescom',
                                       album='Minidisc',
-                                      track='Horse')
+                                      track='Horse',
+                                      byte_size=1)
         return af
 
     @fudge.patch('rockit.sync.tasks.store_mp3')
@@ -45,6 +46,7 @@ class TestTasks(test_utils.TestCase):
         eq_(af.artist, 'Gescom')
         eq_(af.album, 'Minidisc')
         eq_(af.track, 'Horse')
+        eq_(af.byte_size, 109823)
 
     @fudge.patch('rockit.sync.tasks.s3')
     @fudge.patch('rockit.sync.tasks.store_ogg')
