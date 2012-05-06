@@ -71,6 +71,7 @@ class TestTasks(MP3TestCase):
 
         af = AudioFile.objects.get(pk=af.pk)
         eq_(af.s3_ogg_url, s3_path)
+        assert not os.path.exists(af.temp_path), 'source no longer needed'
 
     @fudge.patch('rockit.sync.tasks.pylast')
     def test_album_art(self, fm):

@@ -88,6 +88,8 @@ def store_ogg(file_id, **kw):
                                    make_protected=True,
                                    unlink_source=True,
                                    headers={'Content-Type': 'application/ogg'})
+    # The local mp3 source is no longer needed.
+    os.unlink(au.temp_path)
     AudioFile.objects.filter(pk=au.pk).update(s3_ogg_url=s3_path)
     print 'stored %s for %s' % (s3_path, file_id)
 
