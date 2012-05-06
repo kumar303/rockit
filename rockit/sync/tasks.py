@@ -17,7 +17,7 @@ _s3_time_limit = 800
 
 
 @task
-def process_file(user_email, filename, **kw):
+def process_file(user_email, filename, sha1, **kw):
     af = scan_fast(filename)
     artist = af.tpe1()
     album = af.talb()
@@ -28,6 +28,7 @@ def process_file(user_email, filename, **kw):
                                   artist=artist,
                                   album=album,
                                   track=track,
+                                  sha1=sha1,
                                   byte_size=os.path.getsize(filename))
     store_mp3.delay(au.pk)
     album_art.delay(au.pk)

@@ -1,3 +1,4 @@
+import hashlib
 import os
 import uuid
 
@@ -61,14 +62,20 @@ def upload(request):
     if not os.path.exists(settings.UPLOAD_TEMP_DIR):
         log.info('creating upload temp dir')
         os.makedirs(settings.UPLOAD_TEMP_DIR)
-    for key, file in request.FILES.items():
-        _, ext = os.path.splitext(key)
-        path = os.path.join(settings.UPLOAD_TEMP_DIR,
-                            '%s%s' % (uuid.uuid4(), ext))
-        with open(path, 'wb') as fp:
-            for chunk in file.chunks():
-                fp.write(chunk)
-        print 'wrote %s' % fp.name
-        print key, file
-        tasks.process_file.delay(user_email, fp.name)
+    key, file = request.FILES.items()[0]
+    _, ext = os.path.splitext(key)
+    path = os.path.join(settings.UPLOAD_TEMP_DIR,
+                        '%s%s' % (uuid.uuid4(), ext))
+    hash = hashlib.sha1()
+    with open(path, 'wb') as fp:
+        for chunk in file.chunks():
+            hash.update(chunk)
+            fp.write(chunk)
+    sha1 = hash.hexdigest()
+    print 'wrote %s' % fp.name
+    print key, file
+    sha1_from_client = str(request.POST['sha1'])
+    if sha1_from_client != sha1:
+        return http.HttpResponseBadRequest('sha1 hash did not match')
+    tasks.process_file.delay(user_email, fp.name, sha1_from_client)
     return http.HttpResponse('cool')

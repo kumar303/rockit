@@ -1,5 +1,4 @@
 import json
-import os
 
 from django.conf import settings
 
@@ -12,6 +11,7 @@ import test_utils
 
 from rockit.music.models import VerifiedEmail
 from rockit.sync.tests import create_audio_file
+from .base import MP3TestCase
 
 
 class TestSongs(test_utils.TestCase):
@@ -33,9 +33,10 @@ class TestSongs(test_utils.TestCase):
         eq_(data['songs'][0]['track'], 'Horse')
 
 
-class TestUpload(test_utils.TestCase):
+class TestUpload(MP3TestCase):
 
     def setUp(self):
+        super(TestUpload, self).setUp()
         self.key = 'in the library with a candlestick'
         self.email = VerifiedEmail.objects.create(email='edna@wat.com',
                                                   upload_key=self.key)
@@ -47,19 +48,19 @@ class TestUpload(test_utils.TestCase):
             key = self.key
         return jwt.encode(req, key)
 
-    def sample_file(self):
-        return open(os.path.join(os.path.dirname(__file__),
-                    'resources', 'sample.mp3'), 'rb')
-
-    def post(self, sig_request=None):
+    def post(self, sig_request=None, sha1=None):
+        if not sha1:
+            sha1 = self.sample_sha1
         with self.sample_file() as fp:
             return self.client.post(reverse('sync.upload'),
                                     {'sig_request': sig_request,
-                                     'sample.mp3': fp})
+                                     'sample.mp3': fp,
+                                     'sha1': sha1})
 
     @fudge.patch('rockit.sync.tasks.process_file')
     def test_upload(self, process_file):
-        process_file.expects('delay').with_args('edna@wat.com', arg.any())
+        process_file.expects('delay').with_args('edna@wat.com', arg.any(),
+                                                self.sample_sha1)
         resp = self.post(sig_request=self.jwt())
         eq_(resp.status_code, 200)
 
@@ -80,3 +81,8 @@ class TestUpload(test_utils.TestCase):
     def test_garbage(self, process_file):
         resp = self.post(sig_request='<garbage>')
         eq_(resp.status_code, 403)
+
+    @fudge.patch('rockit.sync.tasks.process_file')
+    def test_bad_hash(self, process_file):
+        resp = self.post(sig_request=self.jwt(), sha1='<invalid>')
+        eq_(resp.status_code, 400)

@@ -5,37 +5,37 @@ from django.conf import settings
 import fudge
 from fudge.inspector import arg
 from nose.tools import eq_
-import test_utils
 
 from rockit.music.models import AudioFile
 from rockit.sync import tasks
 from rockit.sync.tests import create_audio_file
+from .base import MP3TestCase
 
 
-class TestTasks(test_utils.TestCase):
+class TestTasks(MP3TestCase):
 
     def setUp(self):
-        self.mp3 = os.path.join(os.path.dirname(__file__),
-                                'resources',
-                                'sample.mp3')
+        super(TestTasks, self).setUp()
         if not os.path.exists(settings.UPLOAD_TEMP_DIR):
             os.makedirs(settings.UPLOAD_TEMP_DIR)
 
     def audio_file(self):
-        return create_audio_file(mp3=self.mp3)
+        return create_audio_file(mp3=self.sample_path)
 
     @fudge.patch('rockit.sync.tasks.store_mp3')
     @fudge.patch('rockit.sync.tasks.album_art')
     def test_process(self, store_mp3, album_art):
         store_mp3.expects('delay')
         album_art.expects('delay')
-        tasks.process_file('edna@wat.com', self.mp3)
+        tasks.process_file('edna@wat.com', self.sample_path,
+                           self.sample_sha1)
         af = AudioFile.objects.get()
         eq_(af.email.email, 'edna@wat.com')
         eq_(af.artist, 'Gescom')
         eq_(af.album, 'Minidisc')
         eq_(af.track, 'Horse')
         eq_(af.byte_size, 109823)
+        eq_(af.sha1, self.sample_sha1)
 
     @fudge.patch('rockit.sync.tasks.s3')
     @fudge.patch('rockit.sync.tasks.store_ogg')
