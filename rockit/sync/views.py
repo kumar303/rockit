@@ -7,13 +7,14 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 import commonware.log
+import jwt
 
 from rockit.music.models import AudioFile, VerifiedEmail
 from . import tasks
 from .decorators import (post_required, log_exception,
                          remote_jsonp_view)
 
-log = commonware.log.getLogger('playdoh')
+log = commonware.log.getLogger('rockit')
 
 
 def index(request):
@@ -36,7 +37,27 @@ def songs(request):
 @csrf_exempt
 @log_exception
 def upload(request):
-    user_email = request.POST['email']
+    raw_sig_request = str(request.POST.get('sig_request'))
+    allowed = False
+    try:
+        sig_request = jwt.decode(raw_sig_request, verify=False)
+    except jwt.DecodeError:
+        log.exception('signed request was invalid')
+    else:
+        user_email = sig_request['iss']
+        em = get_object_or_404(VerifiedEmail, email=user_email)
+        if em.upload_key:
+            try:
+                jwt.decode(raw_sig_request, em.upload_key, verify=True)
+                allowed = True
+            except jwt.DecodeError:
+                log.exception('signed request for %s was invalid'
+                              % user_email)
+        else:
+            log.info('no upload_key for %s' % user_email)
+    if not allowed:
+        return http.HttpResponseForbidden()
+
     if not os.path.exists(settings.UPLOAD_TEMP_DIR):
         log.info('creating upload temp dir')
         os.makedirs(settings.UPLOAD_TEMP_DIR)

@@ -4,6 +4,7 @@ import tempfile
 
 from django.conf import settings
 
+import commonware.log
 from celeryutils import task
 import pylast
 
@@ -11,6 +12,7 @@ from rockit.music.audio_file import scan_fast
 from rockit.music.models import AudioFile, VerifiedEmail
 from . import s3
 
+log = commonware.log.getLogger('rockit')
 _s3_time_limit = 800
 
 

@@ -72,8 +72,18 @@ DOMAIN_METHODS['messages'] = [
 #    ('media/js/**.js', 'javascript'),
 # ]
 
+# Paths that don't require a locale code in the URL.
+SUPPORTED_NONLOCALES = [
+    'media',
+    'admin',
+    'upload',
+]
+
+# Used for JWT signature verification.
+SITE_URL = 'http://localhost:8000'
+
 LOGGING = dict(loggers=dict(playdoh = {'level': logging.DEBUG},
-                            sync = {'level': logging.INFO}))
+                            rockit = {'level': logging.INFO}))
 
 UPLOAD_TEMP_DIR = os.path.join(ROOT, 'tmp')
 
