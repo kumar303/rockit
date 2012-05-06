@@ -40,8 +40,7 @@ def store_mp3(file_id, **kw):
                                    make_public=False,
                                    make_protected=True,
                                    unlink_source=False)
-    au.s3_mp3_url = s3_path
-    au.save()
+    AudioFile.objects.filter(pk=au.pk).update(s3_mp3_url=s3_path)
     print 'mp3 stored for %s' % file_id
     store_ogg.delay(file_id)
 
@@ -85,9 +84,7 @@ def store_ogg(file_id, **kw):
                                    make_protected=True,
                                    unlink_source=True,
                                    headers={'Content-Type': 'application/ogg'})
-    au.s3_ogg_url = s3_path
-
-    au.save()
+    AudioFile.objects.filter(pk=au.pk).update(s3_ogg_url=s3_path)
     print 'stored %s for %s' % (s3_path, file_id)
 
 
@@ -96,12 +93,12 @@ def album_art(file_id, **kw):
     au = AudioFile.objects.get(pk=file_id)
     try:
         fm = pylast.get_lastfm_network(api_key=settings.LAST_FM_KEY)
-        fm_album = fm.get_album(au.artist, au.album)
-        au.large_art_url = fm_album.get_cover_image(pylast.COVER_LARGE)
-        au.medium_art_url = fm_album.get_cover_image(pylast.COVER_MEDIUM)
-        au.small_art_url = fm_album.get_cover_image(pylast.COVER_SMALL)
+        alb = fm.get_album(au.artist, au.album)
+        (AudioFile.objects.filter(pk=file_id)
+         .update(large_art_url=alb.get_cover_image(pylast.COVER_LARGE),
+                 medium_art_url=alb.get_cover_image(pylast.COVER_MEDIUM),
+                 small_art_url=alb.get_cover_image(pylast.COVER_SMALL)))
     except pylast.WSError:
         # Probably album not found
         raise
-    au.save()
     print 'got artwork for %s' % au
