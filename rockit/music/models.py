@@ -5,9 +5,17 @@ from rockit.base.models import ModelBase
 from rockit.sync import s3
 
 
+class VerifiedEmail(ModelBase):
+    email = models.CharField(max_length=255, db_index=True, unique=True)
+    upload_key = models.CharField(max_length=255, blank=True, null=True)
+
+    class Meta:
+        db_table = 'music_email'
+
+
 class AudioFile(ModelBase):
+    email = models.ForeignKey(VerifiedEmail)
     temp_path = models.CharField(max_length=255)
-    email = models.CharField(max_length=255, db_index=True)
     artist = models.CharField(max_length=255, db_index=True)
     album = models.CharField(max_length=255, db_index=True)
     track = models.CharField(max_length=255)

@@ -31,7 +31,7 @@ class TestTasks(test_utils.TestCase):
         album_art.expects('delay')
         tasks.process_file('edna@wat.com', self.mp3)
         af = AudioFile.objects.get()
-        eq_(af.email, 'edna@wat.com')
+        eq_(af.email.email, 'edna@wat.com')
         eq_(af.artist, 'Gescom')
         eq_(af.album, 'Minidisc')
         eq_(af.track, 'Horse')
@@ -42,7 +42,7 @@ class TestTasks(test_utils.TestCase):
     def test_store_mp3(self, s3, store_ogg):
         store_ogg.expects('delay')
         af = self.audio_file()
-        s3_path = 'edna@wat.com/%s.mp3' % af.pk
+        s3_path = '%s/%s.mp3' % (af.email.pk, af.pk)
         (s3.expects('move_local_file_into_s3_dir')
            .with_args(af.temp_path,
                       s3_path,
@@ -58,7 +58,7 @@ class TestTasks(test_utils.TestCase):
     @fudge.patch('rockit.sync.tasks.s3')
     def test_store_ogg(self, s3):
         af = self.audio_file()
-        s3_path = 'edna@wat.com/%s.ogg' % af.pk
+        s3_path = '%s/%s.ogg' % (af.email.pk, af.pk)
         (s3.expects('move_local_file_into_s3_dir')
            .with_args(arg.any(),
                       s3_path,

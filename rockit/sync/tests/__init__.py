@@ -3,7 +3,7 @@ import shutil
 
 from django.conf import settings
 
-from rockit.music.models import AudioFile
+from rockit.music.models import AudioFile, VerifiedEmail
 
 
 def create_audio_file(mp3=None, **af_params):
@@ -17,8 +17,9 @@ def create_audio_file(mp3=None, **af_params):
     if os.path.exists(tmp):
         os.unlink(tmp)
     shutil.copyfile(mp3, tmp)
+    em = VerifiedEmail.objects.create(email='edna@wat.com')
     params = dict(temp_path=tmp,
-                  email='edna@wat.com',
+                  email=em,
                   artist='Gescom',
                   album='Minidisc',
                   track='Horse',

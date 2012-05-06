@@ -3,18 +3,17 @@ import uuid
 
 from django.conf import settings
 from django import http
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 import commonware.log
 
-from rockit.music.models import AudioFile
+from rockit.music.models import AudioFile, VerifiedEmail
 from . import tasks
 from .decorators import (post_required, log_exception,
                          remote_jsonp_view)
 
 log = commonware.log.getLogger('playdoh')
-
 
 
 def index(request):
@@ -23,7 +22,7 @@ def index(request):
 
 @remote_jsonp_view
 def songs(request):
-    email = request.GET.get('email')
+    email = get_object_or_404(VerifiedEmail, email=request.GET.get('email'))
     af = (AudioFile.objects.filter(email=email)
                            .exclude(s3_ogg_url=None)
                            .order_by('-created'))

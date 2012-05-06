@@ -8,7 +8,7 @@ from celeryutils import task
 import pylast
 
 from rockit.music.audio_file import scan_fast
-from rockit.music.models import AudioFile
+from rockit.music.models import AudioFile, VerifiedEmail
 from . import s3
 
 _s3_time_limit = 800
@@ -20,7 +20,8 @@ def process_file(user_email, filename, **kw):
     artist = af.tpe1()
     album = af.talb()
     track = af.tit2()
-    au = AudioFile.objects.create(email=user_email,
+    email, c = VerifiedEmail.objects.get_or_create(email=user_email)
+    au = AudioFile.objects.create(email=email,
                                   temp_path=filename,
                                   artist=artist,
                                   album=album,
@@ -34,7 +35,7 @@ def process_file(user_email, filename, **kw):
 def store_mp3(file_id, **kw):
     print 'starting to store mp3 for %s' % file_id
     au = AudioFile.objects.get(pk=file_id)
-    s3_path = '%s/%s.mp3' % (au.email, au.pk)
+    s3_path = '%s/%s.mp3' % (au.email.pk, au.pk)
     s3.move_local_file_into_s3_dir(au.temp_path,
                                    s3_path,
                                    make_public=False,
@@ -77,7 +78,7 @@ def store_ogg(file_id, **kw):
     #                     '-vn', '-acodec', 'vorbis', '-aq', 60, '-strict',
     #                     'experimental', dest])
 
-    s3_path = '%s/%s.ogg' % (au.email, au.pk)
+    s3_path = '%s/%s.ogg' % (au.email.pk, au.pk)
     s3.move_local_file_into_s3_dir(dest,
                                    s3_path,
                                    make_public=False,
