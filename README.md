@@ -44,7 +44,16 @@ Start the server:
     python manage.py runserver
 
 You can now run a server to synchronize mp3s with Amazon S3.
-To actually upload mp3 files, use [rocketlib](https://github.com/kumar303/rockitlib)
+
+uploads
+=======
+
+To upload mp3 files, use [rocketlib](https://github.com/kumar303/rockitlib)
+
+You have to grant each user an upload key for that to work though.
+Run this command to make one:
+
+    python manage.py uploadkey --email user@somewhere.com
 
 playdoh
 =======
