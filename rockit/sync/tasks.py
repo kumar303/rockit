@@ -13,7 +13,7 @@ from rockit.music.models import AudioFile, VerifiedEmail
 from . import s3
 
 log = commonware.log.getLogger('rockit')
-_s3_time_limit = 800
+_s3_time_limit = 1600
 
 
 @task
