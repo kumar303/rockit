@@ -13,7 +13,6 @@ from rockit.music.models import AudioFile, VerifiedEmail
 from . import s3
 
 log = commonware.log.getLogger('rockit')
-_s3_time_limit = 1600
 
 
 @task
@@ -34,7 +33,7 @@ def process_file(user_email, filename, sha1, **kw):
     album_art.delay(au.pk)
 
 
-@task(time_limit=_s3_time_limit)
+@task
 def store_mp3(file_id, **kw):
     print 'starting to store mp3 for %s' % file_id
     au = AudioFile.objects.get(pk=file_id)
@@ -49,7 +48,7 @@ def store_mp3(file_id, **kw):
     store_ogg.delay(file_id)
 
 
-@task(time_limit=_s3_time_limit)
+@task
 def store_ogg(file_id, **kw):
     print 'starting to transcode and store ogg for %s' % file_id
     au = AudioFile.objects.get(pk=file_id)

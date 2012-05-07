@@ -80,6 +80,9 @@ SUPPORTED_NONLOCALES = [
     'checkfiles',
 ]
 
+# Time limit in seconds for background tasks.
+CELERYD_TASK_SOFT_TIME_LIMIT = 60 * 5
+
 # Used for JWT signature verification.
 SITE_URL = 'http://localhost:8000'
 
