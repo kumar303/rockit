@@ -36,6 +36,7 @@ class TestTasks(MP3TestCase):
         eq_(af.track, 'Horse')
         eq_(af.byte_size, 109823)
         eq_(af.sha1, self.sample_sha1)
+        eq_(af.track_num, 53)
 
     @fudge.patch('rockit.sync.tasks.s3')
     @fudge.patch('rockit.sync.tasks.store_ogg')

@@ -19,6 +19,7 @@ class AudioFile(ModelBase):
     artist = models.CharField(max_length=255, db_index=True)
     album = models.CharField(max_length=255, db_index=True)
     track = models.CharField(max_length=255)
+    track_num = models.IntegerField(blank=True, null=True)
     byte_size = models.IntegerField()
     sha1 = models.CharField(max_length=40, db_index=True)
     s3_mp3_url = models.CharField(max_length=255, blank=True, null=True)

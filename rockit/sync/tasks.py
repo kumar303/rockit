@@ -21,12 +21,15 @@ def process_file(user_email, filename, sha1, **kw):
     artist = af.tpe1()
     album = af.talb()
     track = af.tit2()
+    track_num = af.mutagen_id3.get('TRCK')
+    track_num = int(str(track_num)) if track_num else None
     email, c = VerifiedEmail.objects.get_or_create(email=user_email)
     au = AudioFile.objects.create(email=email,
                                   temp_path=filename,
                                   artist=artist,
                                   album=album,
                                   track=track,
+                                  track_num=track_num,
                                   sha1=sha1,
                                   byte_size=os.path.getsize(filename))
     store_mp3.delay(au.pk)
