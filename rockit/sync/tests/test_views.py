@@ -9,7 +9,7 @@ import jwt
 from nose.tools import eq_
 import test_utils
 
-from rockit.music.models import VerifiedEmail
+from rockit.music.models import VerifiedEmail, AudioFile
 from rockit.sync.tests import create_audio_file
 from .base import MP3TestCase
 
@@ -33,6 +33,48 @@ class TestSongs(test_utils.TestCase):
         eq_(data['songs'][0]['track'], 'Horse')
 
 
+class TestCheckFiles(MP3TestCase):
+
+    def setUp(self):
+        super(TestCheckFiles, self).setUp()
+        self.email = VerifiedEmail.objects.create(email='edna@wat.com',
+                                                  upload_key='sekrets')
+
+    def checkfiles(self, sha1s):
+        sig = jwt.encode({'iss': self.email.email, 'aud': settings.SITE_URL,
+                          'request': {'sha1s': sha1s}},
+                         self.email.upload_key)
+        return self.client.get(reverse('sync.checkfiles'),
+                               data=dict(r=sig))
+
+    def create_audio_file(self):
+        AudioFile.objects.create(email=self.email,
+                                 artist='Flying Lotus',
+                                 track='Arkestry',
+                                 album='Cosmogramma',
+                                 byte_size=1,
+                                 sha1=self.sample_sha1)
+
+    def test_check_false(self):
+        resp = self.checkfiles([self.sample_sha1])
+        data = json.loads(resp.content)
+        eq_(data['sha1s'][self.sample_sha1], False)
+
+    def test_check_true(self):
+        self.create_audio_file()
+        resp = self.checkfiles([self.sample_sha1])
+        data = json.loads(resp.content)
+        eq_(data['sha1s'][self.sample_sha1], True)
+
+    def test_check_multiple(self):
+        self.create_audio_file()
+        resp = self.checkfiles([self.sample_sha1,
+                                'nonexistant'])
+        data = json.loads(resp.content)
+        eq_(data['sha1s'][self.sample_sha1], True)
+        eq_(data['sha1s']['nonexistant'], False)
+
+
 class TestUpload(MP3TestCase):
 
     def setUp(self):
@@ -53,7 +95,7 @@ class TestUpload(MP3TestCase):
             sha1 = self.sample_sha1
         with self.sample_file() as fp:
             return self.client.post(reverse('sync.upload'),
-                                    {'sig_request': sig_request,
+                                    {'r': sig_request,
                                      'sample.mp3': fp,
                                      'sha1': sha1})
 

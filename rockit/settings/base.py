@@ -77,6 +77,7 @@ SUPPORTED_NONLOCALES = [
     'media',
     'admin',
     'upload',
+    'checkfiles',
 ]
 
 # Used for JWT signature verification.

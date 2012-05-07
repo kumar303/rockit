@@ -5,6 +5,7 @@ from . import views
 
 urlpatterns = patterns('',
     url(r'^upload$', views.upload, name='sync.upload'),
+    url(r'^checkfiles$', views.checkfiles, name='sync.checkfiles'),
     url(r'^songs$', views.songs, name='sync.songs'),
     url(r'^$', views.index, name='sync.index'),
 )
