@@ -78,6 +78,7 @@ SUPPORTED_NONLOCALES = [
     'admin',
     'upload',
     'checkfiles',
+    'music',
 ]
 
 # Time limit in seconds for background tasks.
@@ -85,6 +86,10 @@ CELERYD_TASK_SOFT_TIME_LIMIT = 60 * 5
 
 # Used for JWT signature verification.
 SITE_URL = 'http://localhost:8000'
+
+# Client / access_key for signed JWT API requests.
+# Each client in this list will be authorized to interact with the service.
+API_CLIENTS = {'client1': '<secret key>'}
 
 LOGGING = dict(loggers=dict(playdoh = {'level': logging.DEBUG},
                             rockit = {'level': logging.INFO}))

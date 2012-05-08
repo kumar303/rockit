@@ -10,7 +10,7 @@ import jwt
 from rockit.music.models import VerifiedEmail
 
 
-log = commonware.log.getLogger('playdoh')
+log = commonware.log.getLogger('music')
 
 
 def post_required(f):

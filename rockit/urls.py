@@ -1,9 +1,10 @@
 from django.conf import settings
-from django.conf.urls.defaults import *
+from django.conf.urls.defaults import patterns, include
 from django.contrib import admin
 from django.contrib.admin import site as admin_site
 # from funfactory.admin import site as admin_site
 
+import rockit.music.urls
 import rockit.sync.urls
 
 
@@ -11,6 +12,7 @@ admin.autodiscover()
 
 
 urlpatterns = patterns('',
+    (r'music/', include(rockit.music.urls)),
     (r'', include(rockit.sync.urls)),
 
     # Uncomment the admin/doc line below to enable admin documentation:
