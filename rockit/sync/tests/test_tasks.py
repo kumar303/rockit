@@ -38,6 +38,36 @@ class TestTasks(MP3TestCase):
         eq_(af.sha1, self.sample_sha1)
         eq_(af.track_num, 53)
 
+    @fudge.patch('rockit.sync.tasks.store_mp3')
+    @fudge.patch('rockit.sync.tasks.album_art')
+    @fudge.patch('rockit.sync.tasks.scan_fast')
+    def test_track_num_with_total(self, store_mp3, album_art, scan_fast):
+        store_mp3.is_a_stub()
+        album_art.is_a_stub()
+        id3 = fudge.Fake().provides('get').returns('5/16')
+        (scan_fast.expects_call().returns_fake()
+                  .is_a_stub()
+                  .has_attr(mutagen_id3=id3))
+        tasks.process_file('edna@wat.com', self.sample_path,
+                           self.sample_sha1)
+        af = AudioFile.objects.get()
+        eq_(af.track_num, 5)
+
+    @fudge.patch('rockit.sync.tasks.store_mp3')
+    @fudge.patch('rockit.sync.tasks.album_art')
+    @fudge.patch('rockit.sync.tasks.scan_fast')
+    def test_empty_track_num(self, store_mp3, album_art, scan_fast):
+        store_mp3.is_a_stub()
+        album_art.is_a_stub()
+        id3 = fudge.Fake().provides('get').returns('')
+        (scan_fast.expects_call().returns_fake()
+                  .is_a_stub()
+                  .has_attr(mutagen_id3=id3))
+        tasks.process_file('edna@wat.com', self.sample_path,
+                           self.sample_sha1)
+        af = AudioFile.objects.get()
+        eq_(af.track_num, None)
+
     @fudge.patch('rockit.sync.tasks.s3')
     @fudge.patch('rockit.sync.tasks.store_ogg')
     def test_store_mp3(self, s3, store_ogg):
