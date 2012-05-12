@@ -5,9 +5,11 @@ import tempfile
 from django.conf import settings
 
 import commonware.log
+from celery_tasktree import task_with_callbacks, TaskTree
 from celeryutils import task
 import pylast
 
+from rockit.base.util import filetype
 from rockit.music.audio_file import scan_fast
 from rockit.music.models import Track, TrackFile, VerifiedEmail
 from . import s3
@@ -31,12 +33,30 @@ def process_file(user_email, filename, sha1, **kw):
                               album=album,
                               track=track,
                               track_num=track_num)
-    store_mp3.delay(tr.pk, filename, sha1=sha1)
     album_art.delay(tr.pk)
+    store_and_transcode(tr.pk)
 
 
-@task
-def store_mp3(track_id, filename, sha1=None, **kw):
+def store_and_transcode(track_id):
+    tr = Track.objects.get(pk=track_id)
+    ftype = filetype(tr.temp_path)
+    if ftype == 'mp3':
+        store_source = store_mp3
+        transcoders = [store_ogg]
+    else:
+        raise ValueError('file type not supported: %r' % ftype)
+
+    args = [tr.pk]
+    pipeline = TaskTree()
+    pipeline.push(store_source, args=args)
+    for trans in transcoders:
+        pipeline.push(trans, args=args)
+    pipeline.push(unlink_source, args=args)
+    pipeline.apply_async()
+
+
+@task_with_callbacks
+def store_mp3(track_id, **kw):
     print 'starting to store mp3 for %s' % track_id
     tr = Track.objects.get(pk=track_id)
     s3.move_local_file_into_s3_dir(tr.temp_path,
@@ -44,12 +64,11 @@ def store_mp3(track_id, filename, sha1=None, **kw):
                                    make_public=False,
                                    make_protected=True,
                                    unlink_source=False)
-    TrackFile.from_file(tr, filename, sha1=sha1)
+    TrackFile.from_file(tr, tr.temp_path)
     print 'mp3 stored for %s' % track_id
-    store_ogg.delay(track_id)
 
 
-@task
+@task_with_callbacks
 def store_ogg(track_id, **kw):
     print 'starting to transcode and store ogg for %s' % track_id
     tr = Track.objects.get(pk=track_id)
@@ -92,9 +111,15 @@ def store_ogg(track_id, **kw):
     tf = TrackFile.from_file(tr, dest)
     # The temp ogg file is no longer needed.
     os.unlink(dest)
-    # The local mp3 source is no longer needed.
-    os.unlink(tr.temp_path)
     print 'stored %s for %s' % (tf.s3_url, track_id)
+
+
+@task_with_callbacks
+def unlink_source(track_id, **kw):
+    tr = Track.objects.get(pk=track_id)
+    print 'unlnking temp source %r for %s' % (tr.temp_path, tr.pk)
+    os.unlink(tr.temp_path)
+    Track.objects.filter(pk=tr.pk).update(temp_path=None)
 
 
 @task

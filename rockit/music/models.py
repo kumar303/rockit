@@ -5,6 +5,7 @@ from django.conf import settings
 from django.db import models
 
 from rockit.base.models import ModelBase
+from rockit.base.util import filetype
 from rockit.sync import s3
 
 
@@ -18,7 +19,7 @@ class VerifiedEmail(ModelBase):
 
 class Track(ModelBase):
     email = models.ForeignKey(VerifiedEmail)
-    temp_path = models.CharField(max_length=255)
+    temp_path = models.CharField(max_length=255, blank=True, null=True)
     artist = models.CharField(max_length=255, db_index=True)
     album = models.CharField(max_length=255, db_index=True)
     track = models.CharField(max_length=255)
@@ -86,8 +87,7 @@ class TrackFile(ModelBase):
                         break
                     hash.update(chunk)
             sha1 = hash.hexdigest()
-        base, ext = os.path.splitext(filename)
-        type = ext[1:].lower()
+        type = filetype(filename)
         tf = cls.objects.create(track=track,
                                 sha1=sha1,
                                 s3_url=track.s3_url(type),
