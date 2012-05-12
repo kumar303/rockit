@@ -9,7 +9,7 @@ from celeryutils import task
 import pylast
 
 from rockit.music.audio_file import scan_fast
-from rockit.music.models import AudioFile, VerifiedEmail
+from rockit.music.models import Track, TrackFile, VerifiedEmail
 from . import s3
 
 log = commonware.log.getLogger('rockit')
@@ -25,48 +25,46 @@ def process_file(user_email, filename, sha1, **kw):
     track_num = track_num.split('/')[0]  # 1/30
     track_num = int(track_num) if track_num else None
     email, c = VerifiedEmail.objects.get_or_create(email=user_email)
-    au = AudioFile.objects.create(email=email,
-                                  temp_path=filename,
-                                  artist=artist,
-                                  album=album,
-                                  track=track,
-                                  track_num=track_num,
-                                  sha1=sha1,
-                                  byte_size=os.path.getsize(filename))
-    store_mp3.delay(au.pk)
-    album_art.delay(au.pk)
+    tr = Track.objects.create(email=email,
+                              temp_path=filename,
+                              artist=artist,
+                              album=album,
+                              track=track,
+                              track_num=track_num)
+    store_mp3.delay(tr.pk, filename, sha1=sha1)
+    album_art.delay(tr.pk)
 
 
 @task
-def store_mp3(file_id, **kw):
-    print 'starting to store mp3 for %s' % file_id
-    au = AudioFile.objects.get(pk=file_id)
-    s3_path = '%s/%s.mp3' % (au.email.pk, au.pk)
-    s3.move_local_file_into_s3_dir(au.temp_path,
-                                   s3_path,
+def store_mp3(track_id, filename, sha1=None, **kw):
+    print 'starting to store mp3 for %s' % track_id
+    tr = Track.objects.get(pk=track_id)
+    s3.move_local_file_into_s3_dir(tr.temp_path,
+                                   tr.s3_url('mp3'),
                                    make_public=False,
                                    make_protected=True,
                                    unlink_source=False)
-    AudioFile.objects.filter(pk=au.pk).update(s3_mp3_url=s3_path)
-    print 'mp3 stored for %s' % file_id
-    store_ogg.delay(file_id)
+    TrackFile.from_file(tr, filename, sha1=sha1)
+    print 'mp3 stored for %s' % track_id
+    store_ogg.delay(track_id)
 
 
 @task
-def store_ogg(file_id, **kw):
-    print 'starting to transcode and store ogg for %s' % file_id
-    au = AudioFile.objects.get(pk=file_id)
+def store_ogg(track_id, **kw):
+    print 'starting to transcode and store ogg for %s' % track_id
+    tr = Track.objects.get(pk=track_id)
     cwd = os.getcwd()
-    os.chdir(os.path.dirname(au.temp_path))
+    os.chdir(os.path.dirname(tr.temp_path))
     try:
         frommp3 = subprocess.Popen(['mpg123', '-w', '-',
-                                    os.path.basename(au.temp_path)],
+                                    os.path.basename(tr.temp_path)],
                                    stdout=subprocess.PIPE)
         toogg = subprocess.Popen(['oggenc', '-'],
                                  stdin=frommp3.stdout,
                                  stdout=subprocess.PIPE)
-        base, ext = os.path.splitext(os.path.basename(au.temp_path))
-        with tempfile.NamedTemporaryFile('wb', delete=False) as outfile:
+        base, ext = os.path.splitext(os.path.basename(tr.temp_path))
+        with tempfile.NamedTemporaryFile('wb', delete=False,
+                                         suffix='.ogg') as outfile:
             dest = outfile.name
             print 'transcoding %s -> %s' % (frommp3, dest)
             while True:
@@ -80,34 +78,36 @@ def store_ogg(file_id, **kw):
     finally:
         os.chdir(cwd)
     #p = subprocess.Popen(['ffmpeg', '-i',
-    #                      au.temp_path,
+    #                      tr.temp_path,
     #                     '-vn', '-acodec', 'vorbis', '-aq', 60, '-strict',
     #                     'experimental', dest])
 
-    s3_path = '%s/%s.ogg' % (au.email.pk, au.pk)
     s3.move_local_file_into_s3_dir(dest,
-                                   s3_path,
+                                   tr.s3_url('ogg'),
                                    make_public=False,
                                    make_protected=True,
-                                   unlink_source=True,
-                                   headers={'Content-Type': 'application/ogg'})
+                                   unlink_source=False,
+                                   headers={'Content-Type':
+                                                'application/ogg'})
+    tf = TrackFile.from_file(tr, dest)
+    # The temp ogg file is no longer needed.
+    os.unlink(dest)
     # The local mp3 source is no longer needed.
-    os.unlink(au.temp_path)
-    AudioFile.objects.filter(pk=au.pk).update(s3_ogg_url=s3_path)
-    print 'stored %s for %s' % (s3_path, file_id)
+    os.unlink(tr.temp_path)
+    print 'stored %s for %s' % (tf.s3_url, track_id)
 
 
 @task
-def album_art(file_id, **kw):
-    au = AudioFile.objects.get(pk=file_id)
+def album_art(track_id, **kw):
+    tr = Track.objects.get(pk=track_id)
     try:
         fm = pylast.get_lastfm_network(api_key=settings.LAST_FM_KEY)
-        alb = fm.get_album(au.artist, au.album)
-        (AudioFile.objects.filter(pk=file_id)
+        alb = fm.get_album(tr.artist, tr.album)
+        (Track.objects.filter(pk=track_id)
          .update(large_art_url=alb.get_cover_image(pylast.COVER_LARGE),
                  medium_art_url=alb.get_cover_image(pylast.COVER_MEDIUM),
                  small_art_url=alb.get_cover_image(pylast.COVER_SMALL)))
     except pylast.WSError:
         # Probably album not found
         raise
-    print 'got artwork for %s' % au
+    print 'got artwork for %s' % tr

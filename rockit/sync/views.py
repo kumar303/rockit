@@ -9,7 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 import commonware.log
 
-from rockit.music.models import AudioFile, VerifiedEmail
+from rockit.music.models import Track, TrackFile, VerifiedEmail
 from . import tasks
 from .decorators import (post_required, log_exception,
                          json_view, require_upload_key)
@@ -24,9 +24,9 @@ def index(request):
 @json_view
 def songs(request):
     email = get_object_or_404(VerifiedEmail, email=request.GET.get('email'))
-    af = (AudioFile.objects.filter(email=email)
-                           .exclude(s3_ogg_url=None)
-                           .order_by('-created'))
+    af = (Track.objects.filter(email=email)
+                       .exclude(files=None)
+                       .order_by('-created'))
     ob = []
     for afile in af.all():
         ob.append(afile.to_json())
@@ -51,12 +51,11 @@ def upload(request, raw_sig_request, sig_request):
             hash.update(chunk)
             fp.write(chunk)
     sha1 = hash.hexdigest()
-    print 'wrote %s' % fp.name
-    print key, file
+    email = sig_request['iss']
+    log.info('uploaded %r for %s' % (fp.name, email))
     sha1_from_client = str(request.POST['sha1'])
     if sha1_from_client != sha1:
         return http.HttpResponseBadRequest('sha1 hash did not match')
-    email = sig_request['iss']
     tasks.process_file.delay(email, fp.name, sha1_from_client)
     return http.HttpResponse('cool')
 
@@ -69,7 +68,7 @@ def checkfiles(request, raw_sig_request, sig_request):
         sha1s = sig_request['request']['sha1s']
     except KeyError:
         return http.HttpResponseBadRequest('malformed request')
-    existing = set(AudioFile.objects.filter(sha1__in=sha1s)
+    existing = set(TrackFile.objects.filter(sha1__in=sha1s)
                             .values_list('sha1', flat=True))
     check = {}
     for sh in sha1s:

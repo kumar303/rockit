@@ -3,10 +3,11 @@ import shutil
 
 from django.conf import settings
 
-from rockit.music.models import AudioFile, VerifiedEmail
+from rockit.music.models import Track, TrackFile, VerifiedEmail
 
 
-def create_audio_file(mp3=None, **af_params):
+def create_audio_file(mp3=None, make_mp3=False,
+                      make_ogg=False, **af_params):
     if not mp3:
         mp3 = os.path.join(os.path.dirname(__file__),
                            'resources', 'sample.mp3')
@@ -22,8 +23,19 @@ def create_audio_file(mp3=None, **af_params):
                   email=em,
                   artist='Gescom',
                   album='Minidisc',
-                  track='Horse',
-                  byte_size=1)
+                  track='Horse')
     params.update(af_params)
-    af = AudioFile.objects.create(**params)
-    return af
+    tr = Track.objects.create(**params)
+    if make_mp3:
+        TrackFile.objects.create(track=tr,
+                                 type='mp3',
+                                 sha1='noop',
+                                 byte_size=1,
+                                 s3_url='s3:file.mp3')
+    if make_ogg:
+        TrackFile.objects.create(track=tr,
+                                 type='ogg',
+                                 sha1='noop',
+                                 byte_size=1,
+                                 s3_url='s3:file.ogg')
+    return tr

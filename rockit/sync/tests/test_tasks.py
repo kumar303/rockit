@@ -6,7 +6,7 @@ import fudge
 from fudge.inspector import arg
 from nose.tools import eq_
 
-from rockit.music.models import AudioFile
+from rockit.music.models import Track
 from rockit.sync import tasks
 from rockit.sync.tests import create_audio_file
 from .base import MP3TestCase
@@ -29,14 +29,12 @@ class TestTasks(MP3TestCase):
         album_art.expects('delay')
         tasks.process_file('edna@wat.com', self.sample_path,
                            self.sample_sha1)
-        af = AudioFile.objects.get()
-        eq_(af.email.email, 'edna@wat.com')
-        eq_(af.artist, 'Gescom')
-        eq_(af.album, 'Minidisc')
-        eq_(af.track, 'Horse')
-        eq_(af.byte_size, 109823)
-        eq_(af.sha1, self.sample_sha1)
-        eq_(af.track_num, 53)
+        tr = Track.objects.get()
+        eq_(tr.email.email, 'edna@wat.com')
+        eq_(tr.artist, 'Gescom')
+        eq_(tr.album, 'Minidisc')
+        eq_(tr.track, 'Horse')
+        eq_(tr.track_num, 53)
 
     @fudge.patch('rockit.sync.tasks.store_mp3')
     @fudge.patch('rockit.sync.tasks.album_art')
@@ -50,8 +48,8 @@ class TestTasks(MP3TestCase):
                   .has_attr(mutagen_id3=id3))
         tasks.process_file('edna@wat.com', self.sample_path,
                            self.sample_sha1)
-        af = AudioFile.objects.get()
-        eq_(af.track_num, 5)
+        tr = Track.objects.get()
+        eq_(tr.track_num, 5)
 
     @fudge.patch('rockit.sync.tasks.store_mp3')
     @fudge.patch('rockit.sync.tasks.album_art')
@@ -65,44 +63,51 @@ class TestTasks(MP3TestCase):
                   .has_attr(mutagen_id3=id3))
         tasks.process_file('edna@wat.com', self.sample_path,
                            self.sample_sha1)
-        af = AudioFile.objects.get()
-        eq_(af.track_num, None)
+        tr = Track.objects.get()
+        eq_(tr.track_num, None)
 
     @fudge.patch('rockit.sync.tasks.s3')
     @fudge.patch('rockit.sync.tasks.store_ogg')
     def test_store_mp3(self, s3, store_ogg):
         store_ogg.expects('delay')
-        af = self.audio_file()
-        s3_path = '%s/%s.mp3' % (af.email.pk, af.pk)
+        tr = self.audio_file()
+        s3_path = '%s/%s.mp3' % (tr.email.pk, tr.pk)
         (s3.expects('move_local_file_into_s3_dir')
-           .with_args(af.temp_path,
+           .with_args(tr.temp_path,
                       s3_path,
                       make_public=False,
                       make_protected=True,
                       unlink_source=False))
 
-        tasks.store_mp3(af.pk)
+        tasks.store_mp3(tr.pk, tr.temp_path)
 
-        af = AudioFile.objects.get(pk=af.pk)
-        eq_(af.s3_mp3_url, s3_path)
+        tr = Track.objects.get(pk=tr.pk)
+        tf = tr.file('mp3')
+        eq_(tf.s3_url, s3_path)
+        eq_(tf.byte_size, 109823)
+        eq_(tf.sha1, self.sample_sha1)
 
     @fudge.patch('rockit.sync.tasks.s3')
     def test_store_ogg(self, s3):
-        af = self.audio_file()
-        s3_path = '%s/%s.ogg' % (af.email.pk, af.pk)
+        tr = self.audio_file()
+        s3_path = '%s/%s.ogg' % (tr.email.pk, tr.pk)
         (s3.expects('move_local_file_into_s3_dir')
            .with_args(arg.any(),
                       s3_path,
                       make_public=False,
                       make_protected=True,
-                      unlink_source=True,
+                      unlink_source=False,
                       headers={'Content-Type': 'application/ogg'}))
 
-        tasks.store_ogg(af.pk)
+        tasks.store_ogg(tr.pk)
 
-        af = AudioFile.objects.get(pk=af.pk)
-        eq_(af.s3_ogg_url, s3_path)
-        assert not os.path.exists(af.temp_path), 'source no longer needed'
+        tr = Track.objects.get(pk=tr.pk)
+        tf = tr.file('ogg')
+        eq_(tf.s3_url, s3_path)
+        eq_(tf.type, 'ogg')
+        eq_(tf.byte_size, 61915)
+        assert tf.sha1, 'expected sha1 hash'
+        assert not os.path.exists(tr.temp_path), 'source no longer needed'
 
     @fudge.patch('rockit.sync.tasks.pylast')
     def test_album_art(self, fm):
@@ -115,11 +120,11 @@ class TestTasks(MP3TestCase):
            .returns('<large URL>')
            .next_call().returns('<medium URL>')
            .next_call().returns('<small URL>'))
-        af = self.audio_file()
+        tr = self.audio_file()
 
-        tasks.album_art(af.pk)
+        tasks.album_art(tr.pk)
 
-        af = AudioFile.objects.get(pk=af.pk)
-        eq_(af.large_art_url, '<large URL>')
-        eq_(af.medium_art_url, '<medium URL>')
-        eq_(af.small_art_url, '<small URL>')
+        tr = Track.objects.get(pk=tr.pk)
+        eq_(tr.large_art_url, '<large URL>')
+        eq_(tr.medium_art_url, '<medium URL>')
+        eq_(tr.small_art_url, '<small URL>')

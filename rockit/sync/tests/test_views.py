@@ -9,7 +9,7 @@ import jwt
 from nose.tools import eq_
 import test_utils
 
-from rockit.music.models import VerifiedEmail, AudioFile
+from rockit.music.models import VerifiedEmail, Track, TrackFile
 from rockit.sync.tests import create_audio_file
 from .base import MP3TestCase
 
@@ -17,12 +17,11 @@ from .base import MP3TestCase
 class TestSongs(test_utils.TestCase):
 
     def setUp(self):
-        self.af = create_audio_file(s3_ogg_url='s3:ogg',
-                                    s3_mp3_url='s3:mp3')
+        self.af = create_audio_file(make_ogg=True)
 
     @fudge.patch('rockit.music.models.s3')
     def test_songs(self, s3):
-        s3.expects('get_authenticated_url')
+        s3.expects('get_authenticated_url').returns('<s3 url>')
         resp = self.client.get(reverse('sync.songs'),
                                dict(email='edna@wat.com'),
                                follow=True)
@@ -31,6 +30,7 @@ class TestSongs(test_utils.TestCase):
         eq_(data['songs'][0]['artist'], 'Gescom')
         eq_(data['songs'][0]['album'], 'Minidisc')
         eq_(data['songs'][0]['track'], 'Horse')
+        eq_(data['songs'][0]['s3_urls']['ogg'], '<s3 url>')
 
 
 class TestCheckFiles(MP3TestCase):
@@ -48,10 +48,11 @@ class TestCheckFiles(MP3TestCase):
                                data=dict(r=sig))
 
     def create_audio_file(self):
-        AudioFile.objects.create(email=self.email,
-                                 artist='Flying Lotus',
-                                 track='Arkestry',
-                                 album='Cosmogramma',
+        tr = Track.objects.create(email=self.email,
+                                  artist='Flying Lotus',
+                                  track='Arkestry',
+                                  album='Cosmogramma')
+        TrackFile.objects.create(track=tr,
                                  byte_size=1,
                                  sha1=self.sample_sha1)
 
