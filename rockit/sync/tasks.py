@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 import tempfile
@@ -10,7 +11,6 @@ from celeryutils import task
 import pylast
 
 from rockit.base.util import filetype
-from rockit.music.audio_file import scan_fast
 from rockit.music.models import Track, TrackFile, VerifiedEmail
 from . import s3
 
@@ -19,11 +19,18 @@ log = commonware.log.getLogger('rockit')
 
 @task
 def process_file(user_email, filename, sha1, **kw):
-    af = scan_fast(filename)
-    artist = af.tpe1()
-    album = af.talb()
-    track = af.tit2()
-    track_num = str(af.mutagen_id3.get('TRCK'))
+    sp = subprocess.Popen(['ffprobe', '-v', 'quiet', '-print_format',
+                           'json', '-show_format', '-show_streams',
+                           filename],
+                          stdout=subprocess.PIPE)
+    data = json.load(sp.stdout)
+    ret = sp.wait()
+    if ret != 0:
+        raise RuntimeError('ffprobe failed')
+    artist = data['format']['tags']['artist']
+    album = data['format']['tags']['album']
+    track = data['format']['tags']['title']
+    track_num = data['format']['tags']['track']
     track_num = track_num.split('/')[0]  # 1/30
     track_num = int(track_num) if track_num else None
     email, c = VerifiedEmail.objects.get_or_create(email=user_email)

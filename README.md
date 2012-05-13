@@ -20,6 +20,9 @@ On Mac with homebrew, you could type:
 
     brew install ffmpeg
 
+You also need the ffprobe command line tool but hopefully the ffmpeg package
+also installed that.
+
 Get your mysql database set up:
 
     mysql -u root -e 'create database rockit'
