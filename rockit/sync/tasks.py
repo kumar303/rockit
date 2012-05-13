@@ -18,7 +18,7 @@ log = commonware.log.getLogger('rockit')
 
 
 @task
-def process_file(user_email, filename, sha1, **kw):
+def process_file(user_email, filename, **kw):
     sp = subprocess.Popen(['ffprobe', '-v', 'quiet', '-print_format',
                            'json', '-show_format', '-show_streams',
                            filename],
@@ -47,9 +47,11 @@ def process_file(user_email, filename, sha1, **kw):
 def store_and_transcode(track_id):
     tr = Track.objects.get(pk=track_id)
     ftype = filetype(tr.temp_path)
+    transcoders = [store_ogg]
     if ftype == 'mp3':
         store_source = store_mp3
-        transcoders = [store_ogg]
+    elif ftype == 'm4a':
+        store_source = store_m4a
     else:
         raise ValueError('file type not supported: %r' % ftype)
 
@@ -64,15 +66,12 @@ def store_and_transcode(track_id):
 
 @task_with_callbacks
 def store_mp3(track_id, source=False, **kw):
-    print 'starting to store mp3 for %s' % track_id
-    tr = Track.objects.get(pk=track_id)
-    s3.move_local_file_into_s3_dir(tr.temp_path,
-                                   tr.s3_url('mp3'),
-                                   make_public=False,
-                                   make_protected=True,
-                                   unlink_source=False)
-    TrackFile.from_file(tr, tr.temp_path, source=source)
-    print 'mp3 stored for %s' % track_id
+    _store_source(track_id, 'mp3', source=source)
+
+
+@task_with_callbacks
+def store_m4a(track_id, source=False, **kw):
+    _store_source(track_id, 'm4a', source=source)
 
 
 @task_with_callbacks
@@ -125,3 +124,18 @@ def album_art(track_id, **kw):
         # Probably album not found
         raise
     print 'got artwork for %s' % tr
+
+
+def _store_source(track_id, ftype, source=False):
+    tr = Track.objects.get(pk=track_id)
+    print 'starting to store %s for %s from %s' % (ftype, track_id,
+                                                   tr.temp_path)
+    if filetype(tr.temp_path) != ftype:
+        raise ValueError('%s is not of type %s' % (tr.temp_path, ftype))
+    s3.move_local_file_into_s3_dir(tr.temp_path,
+                                   tr.s3_url(ftype),
+                                   make_public=False,
+                                   make_protected=True,
+                                   unlink_source=False)
+    TrackFile.from_file(tr, tr.temp_path, source=source)
+    print '%s stored for %s' % (ftype, track_id)

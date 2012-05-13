@@ -102,8 +102,7 @@ class TestUpload(MP3TestCase):
 
     @fudge.patch('rockit.sync.tasks.process_file')
     def test_upload(self, process_file):
-        process_file.expects('delay').with_args('edna@wat.com', arg.any(),
-                                                self.sample_sha1)
+        process_file.expects('delay').with_args('edna@wat.com', arg.any())
         resp = self.post(sig_request=self.jwt())
         eq_(resp.status_code, 200)
 

@@ -3,21 +3,23 @@ import shutil
 
 from django.conf import settings
 
+from rockit.base.util import filetype
 from rockit.music.models import Track, TrackFile, VerifiedEmail
 
 
-def create_audio_file(mp3=None, make_mp3=False,
+def create_audio_file(source=None, make_mp3=False,
                       make_ogg=False, **af_params):
-    if not mp3:
-        mp3 = os.path.join(os.path.dirname(__file__),
-                           'resources', 'sample.mp3')
+    if not source:
+        source = os.path.join(os.path.dirname(__file__),
+                              'resources', 'sample.mp3')
     if not os.path.exists(settings.UPLOAD_TEMP_DIR):
         os.makedirs(settings.UPLOAD_TEMP_DIR)
+    ftype = filetype(source)
     tmp = os.path.join(settings.UPLOAD_TEMP_DIR,
-                       '__test__.mp3')
+                       '__test__.%s' % ftype)
     if os.path.exists(tmp):
         os.unlink(tmp)
-    shutil.copyfile(mp3, tmp)
+    shutil.copyfile(source, tmp)
     em = VerifiedEmail.objects.create(email='edna@wat.com')
     params = dict(temp_path=tmp,
                   email=em,
@@ -26,6 +28,9 @@ def create_audio_file(mp3=None, make_mp3=False,
                   track='Horse')
     params.update(af_params)
     tr = Track.objects.create(**params)
+
+    # These are convenience functions to copy the source into stub locations.
+    # Don't rely on them too much.
     if make_mp3:
         TrackFile.objects.create(track=tr,
                                  type='mp3',

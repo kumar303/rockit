@@ -56,7 +56,7 @@ def upload(request, raw_sig_request, sig_request):
     sha1_from_client = str(request.POST['sha1'])
     if sha1_from_client != sha1:
         return http.HttpResponseBadRequest('sha1 hash did not match')
-    tasks.process_file.delay(email, fp.name, sha1_from_client)
+    tasks.process_file.delay(email, fp.name)
     return http.HttpResponse('cool')
 
 
