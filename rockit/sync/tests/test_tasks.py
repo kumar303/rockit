@@ -90,13 +90,15 @@ class TestTasks(MP3TestCase):
                       make_protected=True,
                       unlink_source=False))
 
-        tasks.store_mp3(tr.pk)
+        tasks.store_mp3(tr.pk, source=True)
 
         tr = Track.objects.get(pk=tr.pk)
         tf = tr.file('mp3')
         eq_(tf.s3_url, s3_path)
         eq_(tf.byte_size, 109823)
         eq_(tf.sha1, self.sample_sha1)
+        tr = Track.objects.get(pk=tr.pk)
+        eq_(tr.source_track_file.pk, tf.pk)
 
     @fudge.patch('rockit.sync.tasks.s3')
     def test_store_ogg(self, s3):

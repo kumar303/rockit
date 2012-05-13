@@ -24,6 +24,8 @@ class Track(ModelBase):
     album = models.CharField(max_length=255, db_index=True)
     track = models.CharField(max_length=255)
     track_num = models.IntegerField(blank=True, null=True)
+    source_track_file = models.ForeignKey('music.TrackFile', null=True,
+                                          related_name='+')
     large_art_url = models.CharField(max_length=255, blank=True, null=True)
     medium_art_url = models.CharField(max_length=255, blank=True, null=True)
     small_art_url = models.CharField(max_length=255, blank=True, null=True)
@@ -77,20 +79,26 @@ class TrackFile(ModelBase):
         db_table = 'music_track_file'
 
     @classmethod
-    def from_file(cls, track, filename, sha1=None):
-        if not sha1:
-            hash = hashlib.sha1()
-            with open(filename, 'rb') as fp:
-                while 1:
-                    chunk = fp.read(1024 * 100)
-                    if not chunk:
-                        break
-                    hash.update(chunk)
-            sha1 = hash.hexdigest()
+    def from_file(cls, track, filename, source=False):
+        """Creates a track file from a filename.
+
+        if source is True it means that this file was the
+        original one uploaded for the track.
+        """
+        hash = hashlib.sha1()
+        with open(filename, 'rb') as fp:
+            while 1:
+                chunk = fp.read(1024 * 100)
+                if not chunk:
+                    break
+                hash.update(chunk)
+        sha1 = hash.hexdigest()
         type = filetype(filename)
         tf = cls.objects.create(track=track,
                                 sha1=sha1,
                                 s3_url=track.s3_url(type),
                                 type=type,
                                 byte_size=os.path.getsize(filename))
+        if source:
+            Track.objects.filter(pk=track.pk).update(source_track_file=tf)
         return tf

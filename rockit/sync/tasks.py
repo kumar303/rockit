@@ -48,7 +48,7 @@ def store_and_transcode(track_id):
 
     args = [tr.pk]
     pipeline = TaskTree()
-    pipeline.push(store_source, args=args)
+    pipeline.push(store_source, args=args, kwargs=dict(source=True))
     for trans in transcoders:
         pipeline.push(trans, args=args)
     pipeline.push(unlink_source, args=args)
@@ -56,7 +56,7 @@ def store_and_transcode(track_id):
 
 
 @task_with_callbacks
-def store_mp3(track_id, **kw):
+def store_mp3(track_id, source=False, **kw):
     print 'starting to store mp3 for %s' % track_id
     tr = Track.objects.get(pk=track_id)
     s3.move_local_file_into_s3_dir(tr.temp_path,
@@ -64,12 +64,12 @@ def store_mp3(track_id, **kw):
                                    make_public=False,
                                    make_protected=True,
                                    unlink_source=False)
-    TrackFile.from_file(tr, tr.temp_path)
+    TrackFile.from_file(tr, tr.temp_path, source=source)
     print 'mp3 stored for %s' % track_id
 
 
 @task_with_callbacks
-def store_ogg(track_id, **kw):
+def store_ogg(track_id, source=False, **kw):
     print 'starting to transcode and store ogg for %s' % track_id
     tr = Track.objects.get(pk=track_id)
     with tempfile.NamedTemporaryFile('wb', delete=False,
@@ -90,7 +90,7 @@ def store_ogg(track_id, **kw):
                                    unlink_source=False,
                                    headers={'Content-Type':
                                                 'application/ogg'})
-    tf = TrackFile.from_file(tr, dest)
+    tf = TrackFile.from_file(tr, dest, source=source)
     # The temp ogg file is no longer needed.
     os.unlink(dest)
     print 'stored %s for %s' % (tf.s3_url, track_id)
