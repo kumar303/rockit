@@ -72,34 +72,16 @@ def store_mp3(track_id, **kw):
 def store_ogg(track_id, **kw):
     print 'starting to transcode and store ogg for %s' % track_id
     tr = Track.objects.get(pk=track_id)
-    cwd = os.getcwd()
-    os.chdir(os.path.dirname(tr.temp_path))
-    try:
-        frommp3 = subprocess.Popen(['mpg123', '-w', '-',
-                                    os.path.basename(tr.temp_path)],
-                                   stdout=subprocess.PIPE)
-        toogg = subprocess.Popen(['oggenc', '-'],
-                                 stdin=frommp3.stdout,
-                                 stdout=subprocess.PIPE)
-        base, ext = os.path.splitext(os.path.basename(tr.temp_path))
-        with tempfile.NamedTemporaryFile('wb', delete=False,
-                                         suffix='.ogg') as outfile:
-            dest = outfile.name
-            print 'transcoding %s -> %s' % (frommp3, dest)
-            while True:
-                data = toogg.stdout.read(1024 * 100)
-                if not data:
-                    break
-                outfile.write(data)
-        ret = toogg.wait()
-        if ret != 0:
-            raise RuntimeError('oggenc failed')
-    finally:
-        os.chdir(cwd)
-    #p = subprocess.Popen(['ffmpeg', '-i',
-    #                      tr.temp_path,
-    #                     '-vn', '-acodec', 'vorbis', '-aq', 60, '-strict',
-    #                     'experimental', dest])
+    with tempfile.NamedTemporaryFile('wb', delete=False,
+                                     suffix='.ogg') as outfile:
+        dest = outfile.name
+    sp = subprocess.Popen(['ffmpeg', '-i',
+                           tr.temp_path,
+                           '-vn', '-acodec', 'vorbis', '-aq', '60', '-strict',
+                           'experimental', '-loglevel', 'quiet', '-y', dest])
+    ret = sp.wait()
+    if ret != 0:
+        raise RuntimeError('ffmpeg source->ogg failed')
 
     s3.move_local_file_into_s3_dir(dest,
                                    tr.s3_url('ogg'),

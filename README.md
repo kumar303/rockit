@@ -15,10 +15,10 @@ Make a virtualenv then install the compiled modules:
     cd rockit
     pip install -r requirements/compiled.txt
 
-Install mpg123 and oggenc command line tools.
+Install ffmpeg to do transcoding.
 On Mac with homebrew, you could type:
 
-    brew install mpg123 vorbis-tools
+    brew install ffmpeg
 
 Get your mysql database set up:
 
