@@ -71,3 +71,8 @@ SECRET_KEY = ''
 # Common Event Format logging parameters
 #CEF_PRODUCT = 'Playdoh'
 #CEF_VENDOR = 'Mozilla'
+
+S3_ACCESS_ID = ''
+S3_SECRET_KEY = ''
+S3_BUCKET = ''
+LAST_FM_KEY = ''
