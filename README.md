@@ -94,6 +94,34 @@ named ``r``. This code example is in Python using
 [PyJWT](https://github.com/progrium/pyjwt) but there are many
 JWT libraries to choose from in your language of choice.
 
+API
+===
+
+**GET /music/?r=<signedRequest>**
+
+Gets all tracks for user by email.
+
+Example request:
+
+    {'iss': 'awesome.ui',
+     'aud': 'http://localhost:8000',
+     'request': {'email': 'edna@wat.com',
+                 'page_size': 100,
+                 'offset': 0}}
+
+Example response:
+
+    {'tracks': [{'s3_urls': {'ogg': '<s3 url>',
+                             'mp3': '<s3 url>'},
+                 'artist': 'Gescom',
+                 'track': 'Horse',
+                 'album': u'Minidisc',
+                 'album_art_url': '<lastfm url>',
+                 'medium_art_url': '<lastfm url>',
+                 'small_art_url': '<lastfm url>',
+                 'large_art_url': '<lastfm url>'}]}
+
+
 playdoh
 =======
 

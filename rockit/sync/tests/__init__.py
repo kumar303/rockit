@@ -20,7 +20,10 @@ def create_audio_file(source=None, make_mp3=False,
     if os.path.exists(tmp):
         os.unlink(tmp)
     shutil.copyfile(source, tmp)
-    em = VerifiedEmail.objects.create(email='edna@wat.com')
+    try:
+        em = VerifiedEmail.objects.get(email='edna@wat.com')
+    except VerifiedEmail.DoesNotExist:
+        em = VerifiedEmail.objects.create(email='edna@wat.com')
     params = dict(temp_path=tmp,
                   email=em,
                   artist='Gescom',

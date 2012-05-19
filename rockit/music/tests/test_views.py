@@ -18,14 +18,17 @@ class TestIndex(test_utils.TestCase):
         self.af = create_audio_file(make_mp3=True,
                                     make_ogg=True)
 
-    def get(self, client_id=None, secret=None):
+    def get(self, client_id=None, secret=None, extra_req=None):
         if not client_id:
             client_id = settings.API_CLIENTS.keys()[0]
         if not secret:
             secret = settings.API_CLIENTS[client_id]
+        req = dict(email='edna@wat.com')
+        if extra_req:
+            req.update(extra_req)
         req = {'iss': client_id,
                'aud': settings.SITE_URL,
-               'request': dict(email='edna@wat.com')}
+               'request': req}
         return self.client.get(reverse('music.index'),
                                dict(r=jwt.encode(req, secret)))
 
@@ -35,11 +38,13 @@ class TestIndex(test_utils.TestCase):
         resp = self.get()
         eq_(resp.status_code, 200)
         data = json.loads(resp.content)
-        eq_(data['songs'][0]['artist'], 'Gescom')
-        eq_(data['songs'][0]['album'], 'Minidisc')
-        eq_(data['songs'][0]['track'], 'Horse')
-        eq_(data['songs'][0]['s3_urls']['mp3'], '<s3 url>')
-        eq_(data['songs'][0]['s3_urls']['ogg'], '<s3 url>')
+        print data['tracks']
+        assert 0
+        eq_(data['tracks'][0]['artist'], 'Gescom')
+        eq_(data['tracks'][0]['album'], 'Minidisc')
+        eq_(data['tracks'][0]['track'], 'Horse')
+        eq_(data['tracks'][0]['s3_urls']['mp3'], '<s3 url>')
+        eq_(data['tracks'][0]['s3_urls']['ogg'], '<s3 url>')
 
     @fudge.patch('rockit.music.models.s3')
     def test_unauthorized(self, s3):
@@ -52,4 +57,27 @@ class TestIndex(test_utils.TestCase):
         resp = self.get()
         eq_(resp.status_code, 200)
         data = json.loads(resp.content)
-        eq_(data['songs'], [])
+        eq_(data['tracks'], [])
+
+    @fudge.patch('rockit.music.models.s3')
+    def test_page_size(self, s3):
+        s3.expects('get_authenticated_url').returns('<s3 url>')
+        create_audio_file(make_mp3=True,
+                          make_ogg=True,
+                          artist='Aphex Twin')
+        resp = self.get(extra_req={'page_size': 1})
+        eq_(resp.status_code, 200)
+        data = json.loads(resp.content)
+        eq_([d['artist'] for d in data['tracks']], ['Gescom'])
+
+    @fudge.patch('rockit.music.models.s3')
+    def test_page_offset(self, s3):
+        s3.expects('get_authenticated_url').returns('<s3 url>')
+        create_audio_file(make_mp3=True,
+                          make_ogg=True,
+                          artist='Aphex Twin')
+        resp = self.get(extra_req={'page_size': 2,
+                                   'offset': 1})
+        eq_(resp.status_code, 200)
+        data = json.loads(resp.content)
+        eq_([d['artist'] for d in data['tracks']], ['Aphex Twin'])
