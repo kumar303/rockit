@@ -38,8 +38,7 @@ class TestIndex(test_utils.TestCase):
         resp = self.get()
         eq_(resp.status_code, 200)
         data = json.loads(resp.content)
-        print data['tracks']
-        assert 0
+        eq_(data['tracks'][0]['id'], self.af.id)
         eq_(data['tracks'][0]['artist'], 'Gescom')
         eq_(data['tracks'][0]['album'], 'Minidisc')
         eq_(data['tracks'][0]['track'], 'Horse')

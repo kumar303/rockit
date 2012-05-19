@@ -54,7 +54,8 @@ class Track(ModelBase):
         s3_urls = {}
         for tf in self.files.all():
             s3_urls[tf.type] = s3.get_authenticated_url(tf.s3_url)
-        return dict(artist=self.artist,
+        return dict(id=self.pk,
+                    artist=self.artist,
                     album=self.album,
                     track=self.track,
                     s3_urls=s3_urls,

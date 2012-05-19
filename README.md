@@ -113,6 +113,7 @@ Example response:
 
     {'tracks': [{'s3_urls': {'ogg': '<s3 url>',
                              'mp3': '<s3 url>'},
+                 'id': 12345,
                  'artist': 'Gescom',
                  'track': 'Horse',
                  'album': u'Minidisc',
