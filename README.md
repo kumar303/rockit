@@ -97,7 +97,7 @@ JWT libraries to choose from in your language of choice.
 API
 ===
 
-**GET /music/?r=<signedRequest>**
+**GET /music/?r=_signedRequest_**
 
 Gets all tracks for user by email.
 
