@@ -7,30 +7,9 @@ from fudge.inspector import arg
 from funfactory.urlresolvers import reverse
 import jwt
 from nose.tools import eq_
-import test_utils
 
 from rockit.music.models import VerifiedEmail, Track, TrackFile
-from rockit.sync.tests import create_audio_file
 from .base import MP3TestCase
-
-
-class TestSongs(test_utils.TestCase):
-
-    def setUp(self):
-        self.af = create_audio_file(make_ogg=True)
-
-    @fudge.patch('rockit.music.models.s3')
-    def test_songs(self, s3):
-        s3.expects('get_authenticated_url').returns('<s3 url>')
-        resp = self.client.get(reverse('sync.songs'),
-                               dict(email='edna@wat.com'),
-                               follow=True)
-        eq_(resp.status_code, 200)
-        data = json.loads(resp.content)
-        eq_(data['songs'][0]['artist'], 'Gescom')
-        eq_(data['songs'][0]['album'], 'Minidisc')
-        eq_(data['songs'][0]['track'], 'Horse')
-        eq_(data['songs'][0]['s3_urls']['ogg'], '<s3 url>')
 
 
 class TestCheckFiles(MP3TestCase):

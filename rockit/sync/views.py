@@ -4,12 +4,11 @@ import uuid
 
 from django.conf import settings
 from django import http
-from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 
 import commonware.log
 
-from rockit.music.models import Track, TrackFile, VerifiedEmail
+from rockit.music.models import TrackFile
 from . import tasks
 from .decorators import (post_required, log_exception,
                          json_view, require_upload_key)
@@ -19,18 +18,6 @@ log = commonware.log.getLogger('rockit')
 
 def index(request):
     return http.HttpResponse('sync server!')
-
-
-@json_view
-def songs(request):
-    email = get_object_or_404(VerifiedEmail, email=request.GET.get('email'))
-    af = (Track.objects.filter(email=email)
-                       .exclude(files=None)
-                       .order_by('-created'))
-    ob = []
-    for afile in af.all():
-        ob.append(afile.to_json())
-    return {'songs': ob}
 
 
 @post_required
