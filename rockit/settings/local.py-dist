@@ -72,6 +72,12 @@ SECRET_KEY = ''
 #CEF_PRODUCT = 'Playdoh'
 #CEF_VENDOR = 'Mozilla'
 
+# Client / access_key for signed JWT API requests.
+# Each client in this list will be authorized to interact with the service.
+# The dict key is their API key (this must be declared as the JWT iss / issuer).
+# The dict value is their API secret (the JWT will be signed with this secret).
+API_CLIENTS = {'herbie': 'I once ate 9 tacos all in one go'}
+
 S3_ACCESS_ID = ''
 S3_SECRET_KEY = ''
 S3_BUCKET = ''
