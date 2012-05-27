@@ -41,6 +41,11 @@ INSTALLED_APPS = list(INSTALLED_APPS) + [
 ]
 
 
+MIDDLEWARE_CLASSES = list(MIDDLEWARE_CLASSES) + [
+    'rockit.base.middleware.LogExceptionsMiddleware'
+]
+
+
 # Because Jinja2 is the default template loader, add any non-Jinja templated
 # apps here:
 JINGO_EXCLUDE_APPS = [
@@ -91,8 +96,10 @@ SITE_URL = 'http://localhost:8000'
 # Each client in this list will be authorized to interact with the service.
 API_CLIENTS = {'client1': '<secret key>'}
 
-LOGGING = dict(loggers=dict(playdoh = {'level': logging.DEBUG},
-                            rockit = {'level': logging.INFO}))
+LOGGING = {'loggers': {'playdoh': {'level': logging.INFO,
+                                   'handlers': ['console']},
+                       'rockit': {'level': logging.DEBUG,
+                                  'handlers': ['console']}}}
 
 UPLOAD_TEMP_DIR = os.path.join(ROOT, 'tmp')
 
