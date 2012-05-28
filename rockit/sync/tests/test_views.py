@@ -8,7 +8,7 @@ from funfactory.urlresolvers import reverse
 import jwt
 from nose.tools import eq_
 
-from rockit.music.models import VerifiedEmail, TrackFile
+from rockit.music.models import VerifiedEmail, TrackFile, Track
 from rockit.sync.models import SyncSession
 from .base import MP3TestCase
 
@@ -43,8 +43,8 @@ class TestCheckFiles(MP3TestCase):
         resp = self.checkfiles([self.sample_sha1])
         data = json.loads(resp.content)
         eq_(data['sha1s'][self.sample_sha1], True)
-        qs = (TrackFile.objects.all().distinct('session__session_key')
-                       .values_list('session__session_key', flat=True))
+        qs = (Track.objects.all().distinct('session__session_key')
+                   .values_list('session__session_key', flat=True))
         eq_(list(qs), [self.session_key])
 
     def test_check_inactive(self):
@@ -154,10 +154,7 @@ class TestUpload(UploadTest):
         eq_(resp.status_code, 400)
 
 
-class TestSession(UploadTest):
-
-    def setUp(self):
-        super(TestSession, self).setUp()
+class TestSessionStart(UploadTest):
 
     def post(self, sig_request=None, expected_status=200):
         if not sig_request:
@@ -179,3 +176,52 @@ class TestSession(UploadTest):
         data = self.post()
         data = self.post()  # colliding session
         eq_(data['success'], False)
+
+
+class TestSessionFinish(UploadTest):
+
+    def setUp(self):
+        super(TestSessionFinish, self).setUp()
+        self.session = SyncSession.objects.create(session_key='1234',
+                                                  email=self.email)
+        self.session_key = self.session.session_key
+
+    def post(self, request=None, expected_status=200):
+        if not request:
+            request = {}
+        request.setdefault('session_key', self.session_key)
+        request.setdefault('purge', False)
+        sig_request = self.jwt(request=request)
+        res = self.client.post(reverse('sync.finish'),
+                               {'r': sig_request})
+        eq_(res.status_code, expected_status)
+        res = json.loads(res.content)
+        return res
+
+    @fudge.patch('rockit.sync.tasks.delete_tracks')
+    def test_finish(self, delete_tracks):
+        self.post()
+        sess = SyncSession.objects.get(pk=self.session_key)
+        eq_(sess.is_active, False)
+
+    @fudge.patch('rockit.sync.tasks.delete_tracks')
+    def test_finish_and_purge(self, delete_tracks):
+        os = SyncSession.objects.create(email=self.email,
+                                        is_active=False,
+                                        session_key='4444')
+        self.create_audio_file(session=os)
+        tr = TrackFile.objects.filter(is_active=True)
+        Track.objects.filter(files__in=tr).update(session=os)
+        tr = list(tr)
+        assert len(tr)
+        delete_tracks.expects('delay').with_args([t.track.pk for t in tr])
+        self.post(request={'purge': True})
+
+    @fudge.patch('rockit.sync.tasks.delete_tracks')
+    def test_preserve_touched_files(self, delete_tracks):
+        self.create_audio_file(session=self.session)
+        tr = TrackFile.objects.filter(is_active=True)
+        Track.objects.filter(files__in=tr).update(session=self.session)
+        tr = list(tr)
+        assert len(tr)
+        self.post(request={'purge': True})

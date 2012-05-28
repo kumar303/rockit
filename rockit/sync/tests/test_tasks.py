@@ -43,6 +43,7 @@ class TestTasks(MP3TestCase):
         eq_(tr.artist, 'Gescom')
         eq_(tr.album, 'Minidisc')
         eq_(tr.track, 'Horse')
+        eq_(tr.session.pk, self.session_key)
         eq_(tr.track_num, 53)
 
     @fudge.patch('rockit.sync.tasks.store_and_transcode')
@@ -251,7 +252,8 @@ class TestTasks(MP3TestCase):
     def test_delete_tracks(self, s3):
         tr = create_audio_file(source=self.sample_path,
                                make_mp3=True,
-                               make_ogg=True)
+                               make_ogg=True,
+                               session=self.session)
         for tf in tr.files.all().order_by('created'):
             s3.expects('delete_key').with_args(tf.s3_url)
 

@@ -8,7 +8,7 @@ from rockit.music.models import Track, TrackFile, VerifiedEmail
 
 
 def create_audio_file(source=None, make_mp3=False,
-                      make_ogg=False, **af_params):
+                      make_ogg=False, session=None, **af_params):
     if not source:
         source = os.path.join(os.path.dirname(__file__),
                               'resources', 'sample.mp3')
@@ -39,11 +39,13 @@ def create_audio_file(source=None, make_mp3=False,
                                  type='mp3',
                                  sha1='noop',
                                  byte_size=1,
+                                 session=session,
                                  s3_url='s3:file.mp3')
     if make_ogg:
         TrackFile.objects.create(track=tr,
                                  type='ogg',
                                  sha1='noop',
                                  byte_size=1,
+                                 session=session,
                                  s3_url='s3:file.ogg')
     return tr

@@ -44,7 +44,8 @@ def process_file(user_email, filename, session_key, **kw):
                               artist=artist,
                               album=album,
                               track=track,
-                              track_num=track_num)
+                              track_num=track_num,
+                              session_id=session_key)
     album_art.delay(tr.pk)
     store_and_transcode(tr.pk, session_key)
 
@@ -133,10 +134,11 @@ def album_art(track_id, **kw):
 
 @task
 def delete_tracks(track_ids, **kw):
+    log.info('deleting %s track(s)' % len(track_ids))
     for tr in Track.objects.filter(pk__in=track_ids):
         for tf in tr.files.all().order_by('created'):
-            log.info('deleting track file %s for track %s'
-                     % (tf.pk, tf.track.pk))
+            log.info('deleting track file %s from %s for track %s at %s'
+                     % (tf.pk, tf.session.pk, tf.track.pk, tf.s3_url))
             s3.delete_key(tf.s3_url)
             tf.is_active = False
             tf.save()

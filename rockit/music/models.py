@@ -19,6 +19,7 @@ class VerifiedEmail(ModelBase):
 
 class Track(ModelBase):
     email = models.ForeignKey(VerifiedEmail)
+    session = models.ForeignKey('sync.SyncSession', null=True)
     is_active = models.BooleanField(default=True, db_index=True)
     temp_path = models.CharField(max_length=255, blank=True, null=True)
     artist = models.CharField(max_length=255, db_index=True)

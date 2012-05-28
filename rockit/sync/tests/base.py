@@ -17,11 +17,12 @@ class MP3TestCase(test_utils.TestCase):
     def sample_file(self):
         return open(self.sample_path, 'rb')
 
-    def create_audio_file(self):
+    def create_audio_file(self, session=None):
         tr = Track.objects.create(email=self.email,
                                   artist='Flying Lotus',
                                   track='Arkestry',
                                   album='Cosmogramma')
         TrackFile.objects.create(track=tr,
                                  byte_size=1,
+                                 session=session,
                                  sha1=self.sample_sha1)
