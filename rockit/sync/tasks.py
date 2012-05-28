@@ -127,7 +127,7 @@ def album_art(track_id, **kw):
                  small_art_url=alb.get_cover_image(pylast.COVER_SMALL)))
     except pylast.WSError:
         # Probably album not found
-        raise
+        log.exception('in album_art')
     print 'got artwork for %s' % tr
 
 
