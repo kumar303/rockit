@@ -13,7 +13,7 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
     (r'music/', include(rockit.music.urls)),
-    (r'', include(rockit.sync.urls)),
+    (r'sync/', include(rockit.sync.urls)),
 
     # Uncomment the admin/doc line below to enable admin documentation:
     # (r'^admin/doc/', include('django.contrib.admindocs.urls')),

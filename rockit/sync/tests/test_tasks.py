@@ -7,8 +7,9 @@ import fudge
 from fudge.inspector import arg
 from nose.tools import eq_
 
-from rockit.music.models import Track, TrackFile
+from rockit.music.models import Track, TrackFile, VerifiedEmail
 from rockit.sync import tasks
+from rockit.sync.models import SyncSession
 from rockit.sync.tests import create_audio_file
 from .base import MP3TestCase
 
@@ -21,6 +22,10 @@ class TestTasks(MP3TestCase):
                                        'resources', 'sample.m4a')
         if not os.path.exists(settings.UPLOAD_TEMP_DIR):
             os.makedirs(settings.UPLOAD_TEMP_DIR)
+        self.email = VerifiedEmail.objects.create(email='edna@wat.com')
+        self.session = SyncSession.objects.create(session_key='1234',
+                                                  email=self.email)
+        self.session_key = self.session.session_key
 
     def audio_file(self, sample_file=None):
         if not sample_file:
@@ -30,9 +35,9 @@ class TestTasks(MP3TestCase):
     @fudge.patch('rockit.sync.tasks.store_and_transcode')
     @fudge.patch('rockit.sync.tasks.album_art')
     def test_process_mp3(self, store, album_art):
-        store.expects_call()
+        store.expects_call().with_args(arg.any(), self.session_key)
         album_art.expects('delay')
-        tasks.process_file('edna@wat.com', self.sample_path)
+        tasks.process_file('edna@wat.com', self.sample_path, self.session_key)
         tr = Track.objects.get()
         eq_(tr.email.email, 'edna@wat.com')
         eq_(tr.artist, 'Gescom')
@@ -45,7 +50,7 @@ class TestTasks(MP3TestCase):
     def test_process_m4a(self, store, album_art):
         store.expects_call()
         album_art.expects('delay')
-        tasks.process_file('edna@wat.com', self.sample_m4a)
+        tasks.process_file('edna@wat.com', self.sample_m4a, self.session_key)
         tr = Track.objects.get()
         eq_(tr.email.email, 'edna@wat.com')
         eq_(tr.artist, 'Gescom')
@@ -67,7 +72,7 @@ class TestTasks(MP3TestCase):
         (popen.expects_call().returns_fake()
                              .provides('wait').returns(0)
                              .has_attr(stdout=data))
-        tasks.process_file('edna@wat.com', self.sample_path)
+        tasks.process_file('edna@wat.com', self.sample_path, self.session_key)
         tr = Track.objects.get()
         eq_(tr.track_num, 5)
 
@@ -85,7 +90,7 @@ class TestTasks(MP3TestCase):
         (popen.expects_call().returns_fake()
                              .provides('wait').returns(0)
                              .has_attr(stdout=data))
-        tasks.process_file('edna@wat.com', self.sample_path)
+        tasks.process_file('edna@wat.com', self.sample_path, self.session_key)
         tr = Track.objects.get()
         eq_(tr.track_num, None)
 
@@ -103,7 +108,7 @@ class TestTasks(MP3TestCase):
         (popen.expects_call().returns_fake()
                              .provides('wait').returns(0)
                              .has_attr(stdout=data))
-        tasks.process_file('edna@wat.com', self.sample_path)
+        tasks.process_file('edna@wat.com', self.sample_path, self.session_key)
         tr = Track.objects.get()
         eq_(tr.track_num, None)
 
@@ -119,7 +124,7 @@ class TestTasks(MP3TestCase):
              .expects('apply_async')
              )
         tr = self.audio_file()
-        tasks.store_and_transcode(tr.pk)
+        tasks.store_and_transcode(tr.pk, self.session_key)
 
     @fudge.patch('rockit.sync.tasks.TaskTree')
     def test_store_and_transcode_m4a(self, Tree):
@@ -133,7 +138,7 @@ class TestTasks(MP3TestCase):
              .expects('apply_async')
              )
         tr = self.audio_file(sample_file=self.sample_m4a)
-        tasks.store_and_transcode(tr.pk)
+        tasks.store_and_transcode(tr.pk, self.session_key)
 
     @fudge.patch('rockit.sync.tasks.s3')
     def test_store_mp3(self, s3):
@@ -146,13 +151,14 @@ class TestTasks(MP3TestCase):
                       make_protected=True,
                       unlink_source=False))
 
-        tasks.store_mp3(tr.pk, source=True)
+        tasks.store_mp3(tr.pk, self.session_key, source=True)
 
         tr = Track.objects.get(pk=tr.pk)
         tf = tr.file('mp3')
         eq_(tf.s3_url, s3_path)
         eq_(tf.byte_size, 109823)
         eq_(tf.sha1, self.sample_sha1)
+        eq_(tf.session.session_key, self.session_key)
         tr = Track.objects.get(pk=tr.pk)
         eq_(tr.source_track_file.pk, tf.pk)
 
@@ -167,11 +173,12 @@ class TestTasks(MP3TestCase):
                       make_protected=True,
                       unlink_source=False))
 
-        tasks.store_m4a(tr.pk, source=True)
+        tasks.store_m4a(tr.pk, self.session_key, source=True)
 
         tr = Track.objects.get(pk=tr.pk)
         tf = tr.file('m4a')
         eq_(tf.s3_url, s3_path)
+        eq_(tf.session.session_key, self.session_key)
         assert tf.byte_size
         assert tf.sha1
         tr = Track.objects.get(pk=tr.pk)
@@ -189,12 +196,13 @@ class TestTasks(MP3TestCase):
                       unlink_source=False,
                       headers={'Content-Type': 'application/ogg'}))
 
-        tasks.store_ogg(tr.pk)
+        tasks.store_ogg(tr.pk, self.session_key)
 
         tr = Track.objects.get(pk=tr.pk)
         tf = tr.file('ogg')
         eq_(tf.s3_url, s3_path)
         eq_(tf.type, 'ogg')
+        eq_(tf.session.session_key, self.session_key)
         assert tf.byte_size, 'expected byte size'
         assert tf.sha1, 'expected sha1 hash'
 
@@ -210,7 +218,7 @@ class TestTasks(MP3TestCase):
                       unlink_source=False,
                       headers={'Content-Type': 'application/ogg'}))
 
-        tasks.store_ogg(tr.pk)
+        tasks.store_ogg(tr.pk, self.session_key)
 
         tr = Track.objects.get(pk=tr.pk)
         tf = tr.file('ogg')

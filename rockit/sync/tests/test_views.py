@@ -9,6 +9,7 @@ import jwt
 from nose.tools import eq_
 
 from rockit.music.models import VerifiedEmail, TrackFile
+from rockit.sync.models import SyncSession
 from .base import MP3TestCase
 
 
@@ -18,13 +19,19 @@ class TestCheckFiles(MP3TestCase):
         super(TestCheckFiles, self).setUp()
         self.email = VerifiedEmail.objects.create(email='edna@wat.com',
                                                   upload_key='sekrets')
+        self.session = SyncSession.objects.create(session_key='1234',
+                                                  email=self.email)
+        self.session_key = self.session.session_key
 
     def checkfiles(self, sha1s):
         sig = jwt.encode({'iss': self.email.email, 'aud': settings.SITE_URL,
-                          'request': {'sha1s': sha1s}},
+                          'request': {'sha1s': sha1s,
+                                      'session_key': self.session_key}},
                          self.email.upload_key)
-        return self.client.get(reverse('sync.checkfiles'),
+        res = self.client.post(reverse('sync.checkfiles'),
                                data=dict(r=sig))
+        eq_(res.status_code, 200)
+        return res
 
     def test_check_false(self):
         resp = self.checkfiles([self.sample_sha1])
@@ -36,6 +43,9 @@ class TestCheckFiles(MP3TestCase):
         resp = self.checkfiles([self.sample_sha1])
         data = json.loads(resp.content)
         eq_(data['sha1s'][self.sample_sha1], True)
+        qs = (TrackFile.objects.all().distinct('session__session_key')
+                       .values_list('session__session_key', flat=True))
+        eq_(list(qs), [self.session_key])
 
     def test_check_inactive(self):
         self.create_audio_file()
@@ -53,41 +63,56 @@ class TestCheckFiles(MP3TestCase):
         eq_(data['sha1s']['nonexistant'], False)
 
 
-class TestUpload(MP3TestCase):
+class UploadTest(MP3TestCase):
 
     def setUp(self):
-        super(TestUpload, self).setUp()
+        super(UploadTest, self).setUp()
         self.key = 'in the library with a candlestick'
         self.email = VerifiedEmail.objects.create(email='edna@wat.com',
                                                   upload_key=self.key)
 
-    def jwt(self, key=None):
+    def jwt(self, key=None, request=None):
         req = {'iss': self.email.email,
                'aud': settings.SITE_URL}
+        if request:
+            req['request'] = request
         if not key:
             key = self.key
         return jwt.encode(req, key)
 
-    def post(self, sig_request=None, sha1=None):
-        if not sha1:
-            sha1 = self.sample_sha1
+
+class TestUpload(UploadTest):
+
+    def setUp(self):
+        super(TestUpload, self).setUp()
+        self.session = SyncSession.objects.create(session_key='1234',
+                                                  email=self.email)
+        self.session_key = self.session.session_key
+
+    def post(self, sig_request=None, request=None):
+        if not sig_request:
+            if not request:
+                request = {}
+            request.setdefault('sha1', self.sample_sha1)
+            request.setdefault('session_key', self.session_key)
+            sig_request = self.jwt(request=request)
         with self.sample_file() as fp:
             return self.client.post(reverse('sync.upload'),
                                     {'r': sig_request,
-                                     'sample.mp3': fp,
-                                     'sha1': sha1})
+                                     'sample.mp3': fp})
 
     @fudge.patch('rockit.sync.tasks.process_file')
     def test_upload(self, process_file):
-        process_file.expects('delay').with_args('edna@wat.com', arg.any())
-        resp = self.post(sig_request=self.jwt())
+        process_file.expects('delay').with_args('edna@wat.com', arg.any(),
+                                                self.session_key)
+        resp = self.post()
         eq_(resp.status_code, 200)
 
     @fudge.patch('rockit.sync.tasks.process_file')
     def test_upload_existing(self, process_file):
         process_file.provides('delay')
         self.create_audio_file()  # existing file
-        resp = self.post(sig_request=self.jwt())
+        resp = self.post()
         eq_(resp.status_code, 400)
 
     @fudge.patch('rockit.sync.tasks.process_file')
@@ -95,7 +120,7 @@ class TestUpload(MP3TestCase):
         process_file.provides('delay')
         self.create_audio_file()  # existing file
         TrackFile.objects.all().update(is_active=False)
-        resp = self.post(sig_request=self.jwt())
+        resp = self.post()
         eq_(resp.status_code, 200)
 
     @fudge.patch('rockit.sync.tasks.process_file')
@@ -118,5 +143,39 @@ class TestUpload(MP3TestCase):
 
     @fudge.patch('rockit.sync.tasks.process_file')
     def test_bad_hash(self, process_file):
-        resp = self.post(sig_request=self.jwt(), sha1='<invalid>')
+        resp = self.post(request=dict(sha1='<invalid>'))
         eq_(resp.status_code, 400)
+
+    @fudge.patch('rockit.sync.tasks.process_file')
+    def test_inactive_session(self, process_file):
+        self.session.is_active = False
+        self.session.save()
+        resp = self.post()
+        eq_(resp.status_code, 400)
+
+
+class TestSession(UploadTest):
+
+    def setUp(self):
+        super(TestSession, self).setUp()
+
+    def post(self, sig_request=None, expected_status=200):
+        if not sig_request:
+            sig_request = self.jwt()
+        res = self.client.post(reverse('sync.start'),
+                               {'r': sig_request})
+        eq_(res.status_code, expected_status)
+        res = json.loads(res.content)
+        return res
+
+    def test_start(self):
+        data = self.post()
+        us = SyncSession.objects.get(pk=data['session_key'])
+        eq_(us.is_active, True)
+        eq_(us.email.email, 'edna@wat.com')
+        eq_(data['success'], True)
+
+    def test_collision(self):
+        data = self.post()
+        data = self.post()  # colliding session
+        eq_(data['success'], False)

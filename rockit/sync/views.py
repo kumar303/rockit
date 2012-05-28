@@ -9,10 +9,11 @@ from django.views.decorators.csrf import csrf_exempt
 
 import commonware.log
 
-from rockit.music.models import TrackFile
+from rockit.music.models import TrackFile, VerifiedEmail
 from . import tasks
 from .decorators import (post_required, log_exception,
                          json_view, require_upload_key)
+from .models import SyncSession
 
 log = commonware.log.getLogger('rockit')
 
@@ -40,36 +41,80 @@ def upload(request, raw_sig_request, sig_request):
             hash.update(chunk)
             fp.write(chunk)
     sha1 = hash.hexdigest()
-    email = sig_request['iss']
+    user_email = sig_request['iss']
+    email, c = VerifiedEmail.objects.get_or_create(email=user_email)
+
+    # Check the session.
+    try:
+        session = SyncSession.objects.get(email=email, is_active=True)
+    except:
+        log.exception('joining session for %s in upload' % email.email)
+        return http.HttpResponseBadRequest('error joining session')
+
+    # Check for existing files.
     if TrackFile.objects.filter(sha1=sha1,
                                 is_active=True).count():
         log.info('client uploaded a file that already exists: %s'
                  % sha1)
         os.unlink(path)
         return http.HttpResponseBadRequest('track already exists')
-    log.info('uploaded %r for %s' % (fp.name, email))
-    sha1_from_client = str(request.POST['sha1'])
+
+    log.info('uploaded %r for %s' % (fp.name, email.email))
+    sha1_from_client = str(sig_request['request']['sha1'])
     if sha1_from_client != sha1:
         log.info('client computed hash %s did not match server '
                  'computed hash %s' % (sha1_from_client, sha1))
         os.unlink(path)
         return http.HttpResponseBadRequest('sha1 hash did not match')
-    tasks.process_file.delay(email, fp.name)
+
+    tasks.process_file.delay(email.email, fp.name, session.session_key)
+
     return http.HttpResponse('cool')
 
 
+@post_required
+@csrf_exempt
 @log_exception
 @require_upload_key
 @json_view
 def checkfiles(request, raw_sig_request, sig_request):
     try:
+        session_key = sig_request['request']['session_key']
         sha1s = sig_request['request']['sha1s']
     except KeyError:
+        log.exception('in checkfiles')
         return http.HttpResponseBadRequest('malformed request')
-    existing = set(TrackFile.objects.filter(sha1__in=sha1s,
-                                            is_active=True)
-                            .values_list('sha1', flat=True))
+    session = SyncSession.objects.get(pk=session_key)
+    all_files = TrackFile.objects.filter(sha1__in=sha1s, is_active=True)
+    existing = set()
+    for sh in all_files:
+        existing.add(sh.sha1)
+        # "touch" the file to prevent deletion on sync.
+        sh.session = session
+        sh.save()
     check = {}
     for sh in sha1s:
         check[sh] = bool(sh in existing)
     return {'sha1s': check}
+
+
+@post_required
+@csrf_exempt
+@log_exception
+@require_upload_key
+@json_view
+@transaction.commit_on_success
+def start(request, raw_sig_request, sig_request):
+    success = True
+    message = ''
+    session_key = None
+    email = VerifiedEmail.objects.get(email=sig_request['iss'])
+    if SyncSession.objects.filter(email=email, is_active=True).count():
+        success = False
+        message = 'Session already in progress for this user'
+    else:
+        sk = request.session.session_key
+        sess = SyncSession.objects.create(session_key=sk, email=email)
+        session_key = sess.session_key
+    return {'session_key': session_key, 'success': success,
+            'message': message}

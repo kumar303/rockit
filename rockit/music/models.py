@@ -77,12 +77,13 @@ class TrackFile(ModelBase):
     byte_size = models.IntegerField()
     sha1 = models.CharField(max_length=40, db_index=True)
     s3_url = models.CharField(max_length=255)
+    session = models.ForeignKey('sync.SyncSession', null=True)
 
     class Meta:
         db_table = 'music_track_file'
 
     @classmethod
-    def from_file(cls, track, filename, source=False):
+    def from_file(cls, track, filename, session_key, source=False):
         """Creates a track file from a filename.
 
         if source is True it means that this file was the
@@ -101,6 +102,7 @@ class TrackFile(ModelBase):
                                 sha1=sha1,
                                 s3_url=track.s3_url(type),
                                 type=type,
+                                session_id=session_key,
                                 byte_size=os.path.getsize(filename))
         if source:
             Track.objects.filter(pk=track.pk).update(source_track_file=tf)

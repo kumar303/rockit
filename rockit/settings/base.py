@@ -81,9 +81,8 @@ DOMAIN_METHODS['messages'] = [
 SUPPORTED_NONLOCALES = [
     'media',
     'admin',
-    'upload',
-    'checkfiles',
     'music',
+    'sync',
 ]
 
 # Time limit in seconds for background tasks.

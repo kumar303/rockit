@@ -18,7 +18,7 @@ log = commonware.log.getLogger('rockit')
 
 
 @task
-def process_file(user_email, filename, **kw):
+def process_file(user_email, filename, session_key, **kw):
     sp = subprocess.Popen(['ffprobe', '-v', 'quiet', '-print_format',
                            'json', '-show_format', '-show_streams',
                            filename],
@@ -46,10 +46,10 @@ def process_file(user_email, filename, **kw):
                               track=track,
                               track_num=track_num)
     album_art.delay(tr.pk)
-    store_and_transcode(tr.pk)
+    store_and_transcode(tr.pk, session_key)
 
 
-def store_and_transcode(track_id):
+def store_and_transcode(track_id, session_key):
     tr = Track.objects.get(pk=track_id)
     ftype = filetype(tr.temp_path)
     transcoders = [store_ogg]
@@ -60,7 +60,7 @@ def store_and_transcode(track_id):
     else:
         raise ValueError('file type not supported: %r' % ftype)
 
-    args = [tr.pk]
+    args = [tr.pk, session_key]
     pipeline = TaskTree()
     pipeline.push(store_source, args=args, kwargs=dict(source=True))
     for trans in transcoders:
@@ -70,17 +70,17 @@ def store_and_transcode(track_id):
 
 
 @task_with_callbacks
-def store_mp3(track_id, source=False, **kw):
-    _store_source(track_id, 'mp3', source=source)
+def store_mp3(track_id, session_key, source=False, **kw):
+    _store_source(track_id, 'mp3', session_key, source=source)
 
 
 @task_with_callbacks
-def store_m4a(track_id, source=False, **kw):
-    _store_source(track_id, 'm4a', source=source)
+def store_m4a(track_id, session_key, source=False, **kw):
+    _store_source(track_id, 'm4a', session_key, source=source)
 
 
 @task_with_callbacks
-def store_ogg(track_id, source=False, **kw):
+def store_ogg(track_id, session_key, source=False, **kw):
     print 'starting to transcode and store ogg for %s' % track_id
     tr = Track.objects.get(pk=track_id)
     with tempfile.NamedTemporaryFile('wb', delete=False,
@@ -101,14 +101,14 @@ def store_ogg(track_id, source=False, **kw):
                                    unlink_source=False,
                                    headers={'Content-Type':
                                                 'application/ogg'})
-    tf = TrackFile.from_file(tr, dest, source=source)
+    tf = TrackFile.from_file(tr, dest, session_key, source=source)
     # The temp ogg file is no longer needed.
     os.unlink(dest)
     print 'stored %s for %s' % (tf.s3_url, track_id)
 
 
 @task_with_callbacks
-def unlink_source(track_id, **kw):
+def unlink_source(track_id, session_key, **kw):
     tr = Track.objects.get(pk=track_id)
     print 'unlnking temp source %r for %s' % (tr.temp_path, tr.pk)
     os.unlink(tr.temp_path)
@@ -144,7 +144,7 @@ def delete_tracks(track_ids, **kw):
         tr.save()
 
 
-def _store_source(track_id, ftype, source=False):
+def _store_source(track_id, ftype, session_key, source=False):
     tr = Track.objects.get(pk=track_id)
     print 'starting to store %s for %s from %s' % (ftype, track_id,
                                                    tr.temp_path)
@@ -155,5 +155,5 @@ def _store_source(track_id, ftype, source=False):
                                    make_public=False,
                                    make_protected=True,
                                    unlink_source=False)
-    TrackFile.from_file(tr, tr.temp_path, source=source)
+    TrackFile.from_file(tr, tr.temp_path, session_key, source=source)
     print '%s stored for %s' % (ftype, track_id)
