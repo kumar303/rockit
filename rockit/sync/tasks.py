@@ -32,7 +32,12 @@ def process_file(user_email, filename, **kw):
     track = data['format']['tags']['title']
     track_num = data['format']['tags']['track']
     track_num = track_num.split('/')[0]  # 1/30
-    track_num = int(track_num) if track_num else None
+    try:
+        track_num = int(track_num) if track_num else None
+    except ValueError, exc:
+        log.error('Unable to decipher track number from %r: %s'
+                  % (data['format']['tags']['track'], exc))
+        track_num = None
     email, c = VerifiedEmail.objects.get_or_create(email=user_email)
     tr = Track.objects.create(email=email,
                               temp_path=filename,

@@ -89,6 +89,24 @@ class TestTasks(MP3TestCase):
         tr = Track.objects.get()
         eq_(tr.track_num, None)
 
+    @fudge.patch('rockit.sync.tasks.store_and_transcode')
+    @fudge.patch('rockit.sync.tasks.album_art')
+    @fudge.patch('rockit.sync.tasks.subprocess.Popen')
+    def test_invalid_track_num(self, store, album_art, popen):
+        store.is_a_stub()
+        album_art.is_a_stub()
+        data = StringIO(
+            '''{"format": {"tags": {"artist": "",
+                                    "album": "",
+                                    "title": "",
+                                    "track": "garbage"}}}''')
+        (popen.expects_call().returns_fake()
+                             .provides('wait').returns(0)
+                             .has_attr(stdout=data))
+        tasks.process_file('edna@wat.com', self.sample_path)
+        tr = Track.objects.get()
+        eq_(tr.track_num, None)
+
     @fudge.patch('rockit.sync.tasks.TaskTree')
     def test_store_and_transcode_mp3(self, Tree):
         (Tree.expects_call().returns_fake()
