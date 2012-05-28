@@ -7,7 +7,7 @@ import fudge
 from fudge.inspector import arg
 from nose.tools import eq_
 
-from rockit.music.models import Track
+from rockit.music.models import Track, TrackFile
 from rockit.sync import tasks
 from rockit.sync.tests import create_audio_file
 from .base import MP3TestCase
@@ -238,3 +238,18 @@ class TestTasks(MP3TestCase):
         eq_(tr.large_art_url, '<large URL>')
         eq_(tr.medium_art_url, '<medium URL>')
         eq_(tr.small_art_url, '<small URL>')
+
+    @fudge.patch('rockit.sync.tasks.s3')
+    def test_delete_tracks(self, s3):
+        tr = create_audio_file(source=self.sample_path,
+                               make_mp3=True,
+                               make_ogg=True)
+        for tf in tr.files.all().order_by('created'):
+            s3.expects('delete_key').with_args(tf.s3_url)
+
+        tasks.delete_tracks([tr.pk])
+
+        tr = Track.objects.get(pk=tr.pk)
+        eq_(tr.is_active, False)
+        for tf in TrackFile.objects.filter(track=tr):
+            eq_(tf.is_active, False)

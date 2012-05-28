@@ -131,6 +131,19 @@ def album_art(track_id, **kw):
     print 'got artwork for %s' % tr
 
 
+@task
+def delete_tracks(track_ids, **kw):
+    for tr in Track.objects.filter(pk__in=track_ids):
+        for tf in tr.files.all().order_by('created'):
+            log.info('deleting track file %s for track %s'
+                     % (tf.pk, tf.track.pk))
+            s3.delete_key(tf.s3_url)
+            tf.is_active = False
+            tf.save()
+        tr.is_active = False
+        tr.save()
+
+
 def _store_source(track_id, ftype, source=False):
     tr = Track.objects.get(pk=track_id)
     print 'starting to store %s for %s from %s' % (ftype, track_id,

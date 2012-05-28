@@ -82,6 +82,11 @@ def get_key_contents(key_path):
     return run_in_retry_loop(key.get_contents_as_string)
 
 
+def delete_key(key_path):
+    key = get_key(key_path)
+    return run_in_retry_loop(key.delete)
+
+
 def move_local_file_into_s3_dir(local_file, s3_path, make_public=True,
                                 retry_sleep_time=default_retry_sleep_time,
                                 make_protected=False,
