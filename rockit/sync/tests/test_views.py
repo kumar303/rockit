@@ -8,7 +8,7 @@ from funfactory.urlresolvers import reverse
 import jwt
 from nose.tools import eq_
 
-from rockit.music.models import VerifiedEmail, Track, TrackFile
+from rockit.music.models import VerifiedEmail, TrackFile
 from .base import MP3TestCase
 
 
@@ -25,15 +25,6 @@ class TestCheckFiles(MP3TestCase):
                          self.email.upload_key)
         return self.client.get(reverse('sync.checkfiles'),
                                data=dict(r=sig))
-
-    def create_audio_file(self):
-        tr = Track.objects.create(email=self.email,
-                                  artist='Flying Lotus',
-                                  track='Arkestry',
-                                  album='Cosmogramma')
-        TrackFile.objects.create(track=tr,
-                                 byte_size=1,
-                                 sha1=self.sample_sha1)
 
     def test_check_false(self):
         resp = self.checkfiles([self.sample_sha1])
@@ -89,6 +80,21 @@ class TestUpload(MP3TestCase):
     @fudge.patch('rockit.sync.tasks.process_file')
     def test_upload(self, process_file):
         process_file.expects('delay').with_args('edna@wat.com', arg.any())
+        resp = self.post(sig_request=self.jwt())
+        eq_(resp.status_code, 200)
+
+    @fudge.patch('rockit.sync.tasks.process_file')
+    def test_upload_existing(self, process_file):
+        process_file.provides('delay')
+        self.create_audio_file()  # existing file
+        resp = self.post(sig_request=self.jwt())
+        eq_(resp.status_code, 400)
+
+    @fudge.patch('rockit.sync.tasks.process_file')
+    def test_upload_existing_but_inactive(self, process_file):
+        process_file.provides('delay')
+        self.create_audio_file()  # existing file
+        TrackFile.objects.all().update(is_active=False)
         resp = self.post(sig_request=self.jwt())
         eq_(resp.status_code, 200)
 

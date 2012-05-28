@@ -3,6 +3,7 @@ import os
 import uuid
 
 from django.conf import settings
+from django.db import transaction
 from django import http
 from django.views.decorators.csrf import csrf_exempt
 
@@ -24,6 +25,7 @@ def index(request):
 @csrf_exempt
 @log_exception
 @require_upload_key
+@transaction.commit_on_success
 def upload(request, raw_sig_request, sig_request):
     if not os.path.exists(settings.UPLOAD_TEMP_DIR):
         log.info('creating upload temp dir')
@@ -39,9 +41,18 @@ def upload(request, raw_sig_request, sig_request):
             fp.write(chunk)
     sha1 = hash.hexdigest()
     email = sig_request['iss']
+    if TrackFile.objects.filter(sha1=sha1,
+                                is_active=True).count():
+        log.info('client uploaded a file that already exists: %s'
+                 % sha1)
+        os.unlink(path)
+        return http.HttpResponseBadRequest('track already exists')
     log.info('uploaded %r for %s' % (fp.name, email))
     sha1_from_client = str(request.POST['sha1'])
     if sha1_from_client != sha1:
+        log.info('client computed hash %s did not match server '
+                 'computed hash %s' % (sha1_from_client, sha1))
+        os.unlink(path)
         return http.HttpResponseBadRequest('sha1 hash did not match')
     tasks.process_file.delay(email, fp.name)
     return http.HttpResponse('cool')
