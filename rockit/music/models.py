@@ -19,6 +19,7 @@ class VerifiedEmail(ModelBase):
 
 class Track(ModelBase):
     email = models.ForeignKey(VerifiedEmail)
+    is_active = models.BooleanField(default=True, db_index=True)
     temp_path = models.CharField(max_length=255, blank=True, null=True)
     artist = models.CharField(max_length=255, db_index=True)
     album = models.CharField(max_length=255, db_index=True)
@@ -71,6 +72,7 @@ class Track(ModelBase):
 
 class TrackFile(ModelBase):
     track = models.ForeignKey(Track, related_name='files')
+    is_active = models.BooleanField(default=True, db_index=True)
     type = models.CharField(max_length=4, db_index=True)
     byte_size = models.IntegerField()
     sha1 = models.CharField(max_length=40, db_index=True)

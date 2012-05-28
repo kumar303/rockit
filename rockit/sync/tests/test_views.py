@@ -46,6 +46,13 @@ class TestCheckFiles(MP3TestCase):
         data = json.loads(resp.content)
         eq_(data['sha1s'][self.sample_sha1], True)
 
+    def test_check_inactive(self):
+        self.create_audio_file()
+        TrackFile.objects.all().update(is_active=False)
+        resp = self.checkfiles([self.sample_sha1])
+        data = json.loads(resp.content)
+        eq_(data['sha1s'][self.sample_sha1], False)
+
     def test_check_multiple(self):
         self.create_audio_file()
         resp = self.checkfiles([self.sample_sha1,

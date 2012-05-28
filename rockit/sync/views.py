@@ -55,7 +55,8 @@ def checkfiles(request, raw_sig_request, sig_request):
         sha1s = sig_request['request']['sha1s']
     except KeyError:
         return http.HttpResponseBadRequest('malformed request')
-    existing = set(TrackFile.objects.filter(sha1__in=sha1s)
+    existing = set(TrackFile.objects.filter(sha1__in=sha1s,
+                                            is_active=True)
                             .values_list('sha1', flat=True))
     check = {}
     for sh in sha1s:

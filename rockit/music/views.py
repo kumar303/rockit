@@ -10,8 +10,9 @@ from .models import VerifiedEmail, Track
 def index(request, raw_sig_request, sig_request):
     email = get_object_or_404(VerifiedEmail,
                               email=sig_request['request']['email'])
-    af = (Track.objects.filter(email=email)
-                       .exclude(files=None)
+    af = (Track.objects.filter(email=email, is_active=True,
+                               files__is_active=True)
+                       .distinct('id')
                        .order_by('-created'))
     default_offset = 0
     default_size = 50
