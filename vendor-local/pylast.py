@@ -3227,10 +3227,10 @@ class AlbumSearch(_Search):
     def get_next_page(self):
         """Returns the next page of results as a sequence of Album objects."""
         
-        master_node = self._retrieve_next_page()
+        main_node = self._retrieve_next_page()
         
         seq = []
-        for node in master_node.getElementsByTagName("album"):
+        for node in main_node.getElementsByTagName("album"):
             seq.append(Album(_extract(node, "artist"), _extract(node, "name"), self.network))
         
         return seq
@@ -3244,10 +3244,10 @@ class ArtistSearch(_Search):
     def get_next_page(self):
         """Returns the next page of results as a sequence of Artist objects."""
         
-        master_node = self._retrieve_next_page()
+        main_node = self._retrieve_next_page()
         
         seq = []
-        for node in master_node.getElementsByTagName("artist"):
+        for node in main_node.getElementsByTagName("artist"):
             artist = Artist(_extract(node, "name"), self.network)
             artist.listener_count = _number(_extract(node, "listeners"))
             seq.append(artist)
@@ -3264,10 +3264,10 @@ class TagSearch(_Search):
     def get_next_page(self):
         """Returns the next page of results as a sequence of Tag objects."""
         
-        master_node = self._retrieve_next_page()
+        main_node = self._retrieve_next_page()
         
         seq = []
-        for node in master_node.getElementsByTagName("tag"):
+        for node in main_node.getElementsByTagName("tag"):
             tag = Tag(_extract(node, "name"), self.network)
             tag.tag_count = _number(_extract(node, "count"))
             seq.append(tag)
@@ -3285,10 +3285,10 @@ class TrackSearch(_Search):
     def get_next_page(self):
         """Returns the next page of results as a sequence of Track objects."""
         
-        master_node = self._retrieve_next_page()
+        main_node = self._retrieve_next_page()
         
         seq = []
-        for node in master_node.getElementsByTagName("track"):
+        for node in main_node.getElementsByTagName("track"):
             track = Track(_extract(node, "artist"), _extract(node, "name"), self.network)
             track.listener_count = _number(_extract(node, "listeners"))
             seq.append(track)
@@ -3306,10 +3306,10 @@ class VenueSearch(_Search):
     def get_next_page(self):
         """Returns the next page of results as a sequence of Track objects."""
         
-        master_node = self._retrieve_next_page()
+        main_node = self._retrieve_next_page()
         
         seq = []
-        for node in master_node.getElementsByTagName("venue"):
+        for node in main_node.getElementsByTagName("venue"):
             seq.append(Venue(_extract(node, "id"), self.network))
         
         return seq
